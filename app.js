@@ -28,6 +28,31 @@ function ensureAudio(){
   }
   if(ctx.state==='suspended')ctx.resume();$('#audioUnlock').textContent='Audio Ready';$('#audioUnlock').classList.add('on');return ctx;
 }
+async function rsUnlockAudio(testTone=false){
+  try{
+    const c=ensureAudio();
+    if(c.state!=='running') await c.resume();
+    if(c.state==='running'){
+      const btn=$('#audioUnlock');
+      if(btn){btn.textContent='Audio Ready';btn.classList.add('on')}
+      if(statusEl) statusEl.textContent='Audio engine ready';
+      if(testTone){
+        const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;
+        o.type='sine';o.frequency.value=660;
+        g.gain.setValueAtTime(.0001,t);
+        g.gain.exponentialRampToValueAtTime(.16,t+.01);
+        g.gain.exponentialRampToValueAtTime(.0001,t+.14);
+        o.connect(g).connect(c.destination);o.start(t);o.stop(t+.16);
+      }
+      return c;
+    }
+    throw new Error('AudioContext did not enter running state');
+  }catch(e){
+    console.error('Royce Studio audio unlock failed',e);
+    if(statusEl) statusEl.textContent='Tap Enable Audio again';
+    return null;
+  }
+}
 function noiseBuffer(seconds=.2,c=ensureAudio()){const len=Math.max(1,Math.floor(c.sampleRate*seconds)),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;return b}
 function playKick(time=ensureAudio().currentTime,out=drumGain,c=ensureAudio()){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(150,time);o.frequency.exponentialRampToValueAtTime(48,time+.13);g.gain.setValueAtTime(1,time);g.gain.exponentialRampToValueAtTime(.001,time+.22);o.connect(g).connect(out);o.start(time);o.stop(time+.25)}
 function playSnare(time=ensureAudio().currentTime,out=drumGain,c=ensureAudio()){const src=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();src.buffer=noiseBuffer(.18,c);f.type='highpass';f.frequency.value=900;g.gain.setValueAtTime(.65,time);g.gain.exponentialRampToValueAtTime(.001,time+.15);src.connect(f).connect(g).connect(out);src.start(time);const o=c.createOscillator(),og=c.createGain();o.type='triangle';o.frequency.value=185;og.gain.setValueAtTime(.22,time);og.gain.exponentialRampToValueAtTime(.001,time+.09);o.connect(og).connect(out);o.start(time);o.stop(time+.1)}
@@ -96,7 +121,7 @@ async function detectImportedBpm(){
   const result=detectTempo(loopBuffer);setBpm(result.bpm);el.textContent=`Detected about ${result.bpm} BPM. Adjust manually if the beat is half/double time.`;
 }
 
-$('#audioUnlock').onclick=ensureAudio;$('#playBtn').onclick=()=>playing?stop():start();$('#stopBtn').onclick=()=>{stop();stopRecording()};$('#recordBtn').onclick=()=>recorder?.state==='recording'?stopRecording():startRecording();$('#tapTempo').onclick=tapTempo;$('#halfTempo').onclick=()=>setBpm(currentBpm()/2);$('#doubleTempo').onclick=()=>setBpm(currentBpm()*2);$('#bpmPreset').onchange=e=>{if(e.target.value)setBpm(+e.target.value)};bpmEl.onchange=()=>setBpm(currentBpm());$('#detectBpm').onclick=detectImportedBpm;$('#metroBtn').onclick=()=>{metronome=!metronome;$('#metroBtn').textContent=`Metronome ${metronome?'On':'Off'}`;$('#metroBtn').classList.toggle('on',metronome)};$('#clearPattern').onclick=()=>{Object.keys(pattern).forEach(k=>pattern[k].fill(false));buildSequencer()};$$('.pad').forEach(p=>p.onpointerdown=()=>{ensureAudio();drumFns[p.dataset.drum]();p.classList.add('flash');setTimeout(()=>p.classList.remove('flash'),100)});$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});$('#armMic').onclick=armMic;$('#playTake').onclick=()=>$('#takePlayer').play();$('#saveProject').onclick=saveProject;$('#downloadProject').onclick=()=>{const p=projectObject(),safe=p.name.replace(/[^a-z0-9-_]+/gi,'-').replace(/^-|-$/g,'')||'royce-session';downloadBlob(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),`${safe}.royce.json`)};$('#importProject').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectObject(JSON.parse(await f.text()))}catch{statusEl.textContent='Invalid project file'}};$('#exportTake').onclick=()=>{if(lastTakeBlob)downloadBlob(lastTakeBlob,`royce-vocal-take.${lastTakeBlob.type.includes('mp4')?'m4a':'webm'}`)};$('#importAudio').onchange=e=>{const f=e.target.files?.[0];if(f)importAudio(f)};$('#clearLoop').onclick=clearLoop;$('#exportWav').onclick=exportWav;['#drumsVol','#loopVol','#vocalVol','#masterVol','#delayMix','#reverbMix'].forEach(id=>$(id).oninput=updateMixer);$$('.mute-btn').forEach(b=>b.onclick=()=>{muted[b.dataset.track]=!muted[b.dataset.track];updateMixer()});
+$('#audioUnlock').onclick=()=>rsUnlockAudio(true);$('#playBtn').onclick=()=>playing?stop():start();$('#stopBtn').onclick=()=>{stop();stopRecording()};$('#recordBtn').onclick=()=>recorder?.state==='recording'?stopRecording():startRecording();$('#tapTempo').onclick=tapTempo;$('#halfTempo').onclick=()=>setBpm(currentBpm()/2);$('#doubleTempo').onclick=()=>setBpm(currentBpm()*2);$('#bpmPreset').onchange=e=>{if(e.target.value)setBpm(+e.target.value)};bpmEl.onchange=()=>setBpm(currentBpm());$('#detectBpm').onclick=detectImportedBpm;$('#metroBtn').onclick=()=>{metronome=!metronome;$('#metroBtn').textContent=`Metronome ${metronome?'On':'Off'}`;$('#metroBtn').classList.toggle('on',metronome)};$('#clearPattern').onclick=()=>{Object.keys(pattern).forEach(k=>pattern[k].fill(false));buildSequencer()};$('.pad').forEach(p=>p.onpointerdown=async()=>{const c=await rsUnlockAudio(false);if(!c)return;drumFns[p.dataset.drum](c.currentTime);p.classList.add('flash');setTimeout(()=>p.classList.remove('flash'),100)});$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});$('#armMic').onclick=armMic;$('#playTake').onclick=()=>$('#takePlayer').play();$('#saveProject').onclick=saveProject;$('#downloadProject').onclick=()=>{const p=projectObject(),safe=p.name.replace(/[^a-z0-9-_]+/gi,'-').replace(/^-|-$/g,'')||'royce-session';downloadBlob(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),`${safe}.royce.json`)};$('#importProject').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{loadProjectObject(JSON.parse(await f.text()))}catch{statusEl.textContent='Invalid project file'}};$('#exportTake').onclick=()=>{if(lastTakeBlob)downloadBlob(lastTakeBlob,`royce-vocal-take.${lastTakeBlob.type.includes('mp4')?'m4a':'webm'}`)};$('#importAudio').onchange=e=>{const f=e.target.files?.[0];if(f)importAudio(f)};$('#clearLoop').onclick=clearLoop;$('#exportWav').onclick=exportWav;['#drumsVol','#loopVol','#vocalVol','#masterVol','#delayMix','#reverbMix'].forEach(id=>$(id).oninput=updateMixer);$$('.mute-btn').forEach(b=>b.onclick=()=>{muted[b.dataset.track]=!muted[b.dataset.track];updateMixer()});
 buildSequencer();buildPiano();buildBass();updateMixer();try{const saved=localStorage.getItem('royceStudioProject');if(saved)loadProjectObject(JSON.parse(saved))}catch{}
 
 // Royce Studio v0.4 — full song arrangement
@@ -665,15 +690,7 @@ async function rsRunSelfTest(){
 if($('#runSelfTest'))$('#runSelfTest').onclick=rsRunSelfTest;
 
 // Make audio unlock failures visible on iPhone instead of silently failing.
-if($('#audioUnlock'))$('#audioUnlock').onclick=async()=>{
-  try{
-    const c=ensureAudio();
-    if(c?.state==='suspended')await c.resume();
-    $('#audioUnlock').textContent=c?.state==='running'?'Audio Ready':'Tap Audio Again';
-    $('#audioUnlock').classList.toggle('on',c?.state==='running');
-    statusEl.textContent=c?.state==='running'?'Audio engine ready':'Audio is still suspended';
-  }catch(e){console.error(e);statusEl.textContent='Audio could not start in this browser session'}
-};
+if($('#audioUnlock'))$('#audioUnlock').onclick=()=>rsUnlockAudio(true);
 window.addEventListener('error',e=>{console.error('Royce Studio runtime error',e.error||e.message)});
 window.addEventListener('unhandledrejection',e=>{console.error('Royce Studio promise rejection',e.reason)});
 
