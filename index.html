@@ -4,104 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.1</title>
+<title>Royce Studio v1.2</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.app{max-width:760px;margin:auto;padding:calc(env(safe-area-inset-top) + 14px) 12px calc(env(safe-area-inset-bottom) + 28px)}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}h1{margin:0;font-size:28px}.eyebrow{font-size:11px;font-weight:900;letter-spacing:.18em;color:#bca8ff;margin:0}
+.app{max-width:820px;margin:auto;padding:calc(env(safe-area-inset-top) + 14px) 12px calc(env(safe-area-inset-bottom) + 36px)}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}h1{margin:0;font-size:28px}.eyebrow{font-size:11px;font-weight:900;letter-spacing:.18em;color:#bca8ff;margin:0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:12px}button,select,input{font:inherit}
-button{border:1px solid #343445;background:#242431;color:#fff;border-radius:14px;min-height:48px;padding:11px 14px;touch-action:manipulation}
+button{border:1px solid #343445;background:#242431;color:#fff;border-radius:14px;min-height:46px;padding:10px 13px;touch-action:manipulation}
 button.primary{background:linear-gradient(135deg,#6d4ce8,#c43adb)}button.on{outline:2px solid #86efac}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pads{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.pad{height:110px;font-weight:900;font-size:18px}.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:12px}.tab{white-space:nowrap;min-height:42px}.tab.active{background:#fff;color:#111;font-weight:800}
-.panel{display:none}.panel.active{display:block}.row{display:grid;gap:8px;margin:10px 0}.row label{font-size:11px;color:var(--muted);font-weight:800}
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:12px;position:sticky;top:0;background:rgba(9,9,15,.96);padding:8px 0;z-index:5}
+.tab{white-space:nowrap;min-height:42px}.tab.active{background:#fff;color:#111;font-weight:800}
+.panel{display:none}.panel.active{display:block}.status{font-size:12px;color:var(--muted);min-height:18px}.badge{display:inline-block;font-size:10px;padding:5px 8px;border-radius:999px;background:#242431;color:#cfcfe0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pad{height:100px;font-weight:900;font-size:17px}
+.keygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.key{height:120px;background:linear-gradient(#fff,#ddd);color:#111;font-weight:900;border-radius:0 0 12px 12px}
+.row{display:grid;gap:7px;margin:9px 0}.row label{font-size:11px;color:var(--muted);font-weight:800}
 select,input[type=range],input[type=text]{width:100%}select,input[type=text]{background:#0b0b11;color:#fff;border:1px solid #343445;border-radius:12px;min-height:44px;padding:10px}
-.status{font-size:12px;color:var(--muted);min-height:18px}.vocal-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.badge{display:inline-block;font-size:10px;padding:5px 8px;border-radius:999px;background:#242431;color:#cfcfe0}
-@media(max-width:520px){.grid,.vocal-controls{grid-template-columns:1fr}.pad{height:100px}}
+.knobs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.strip{background:#0e0e14;border:1px solid #2a2a38;border-radius:16px;padding:12px}
+.deck{background:#0e0e14;border:1px solid #2a2a38;border-radius:18px;padding:12px}.jog{height:150px;border-radius:50%;border:12px solid #252533;background:radial-gradient(circle,#08080d 0 25%,#222231 26% 60%,#0b0b11 61%);display:grid;place-items:center;margin:12px auto;max-width:150px;font-weight:900}
+.cross{display:grid;gap:8px}.transport{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:620px){.grid2,.knobs{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}.keygrid{grid-template-columns:repeat(4,1fr)}.key{height:92px}.pad{height:88px}}
 </style>
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.1 Core</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
-
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.2</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
-<button class="tab active" data-tab="drums">Drums</button>
-<button class="tab" data-tab="voice">Voice</button>
-<button class="tab" data-tab="tune">Auto‑Tune</button>
+<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
 
-<section id="drums" class="panel active">
-<div class="card">
-<p class="status" id="audioStatus">Tap Enable Audio once, then hit a pad.</p>
-<div class="pads">
-<button class="pad" data-drum="kick">KICK</button>
-<button class="pad" data-drum="snare">SNARE</button>
-<button class="pad" data-drum="hat">HAT</button>
-<button class="pad" data-drum="clap">CLAP</button>
-</div>
-</div>
-</section>
+<section id="drums" class="panel active"><div class="card"><h2>Drum Machine</h2><p class="status" id="audioStatus">Tap Enable Audio once, then play.</p><div class="pads">
+<button class="pad" data-drum="kick">KICK</button><button class="pad" data-drum="snare">SNARE</button><button class="pad" data-drum="hat">HI‑HAT</button><button class="pad" data-drum="clap">CLAP</button><button class="pad" data-drum="tom">TOM</button><button class="pad" data-drum="rim">RIM</button><button class="pad" data-drum="perc">PERC</button><button class="pad" data-drum="crash">CRASH</button>
+</div></div></section>
 
-<section id="voice" class="panel">
-<div class="card">
-<h2>Voice Recorder</h2>
-<p class="status" id="micStatus">Mic not armed.</p>
-<div class="vocal-controls">
-<button id="micBtn">Arm Microphone</button>
-<button id="recBtn" disabled>Start Recording</button>
-</div>
-<audio id="player" controls style="width:100%;margin-top:12px"></audio>
-</div>
-</section>
+<section id="keys" class="panel"><div class="card"><h2>Piano & Keys</h2><div class="row"><label>Sound</label><select id="keyType"><option value="sine">Soft Piano</option><option value="triangle">Electric Keys</option><option value="square">Digital Keys</option><option value="sawtooth">Bright Keys</option></select></div><div id="keysGrid" class="keygrid"></div></div></section>
 
-<section id="tune" class="panel">
-<div class="card">
-<h2>Auto‑Tune</h2>
-<p class="status">Dedicated vocal tuning controls. The correction engine will process recorded vocals in this v1.1 branch without blocking app startup.</p>
-<div class="grid">
-<div class="row"><label>Auto‑Tune</label><button id="tuneToggle">Off</button></div>
-<div class="row"><label>Key</label><select id="key"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select></div>
-<div class="row"><label>Scale</label><select id="scale"><option value="major">Major</option><option value="minor">Minor</option></select></div>
-<div class="row"><label>Strength <span id="strengthVal">70%</span></label><input id="strength" type="range" min="0" max="100" value="70"></div>
-<div class="row"><label>Retune Speed <span id="speedVal">35 ms</span></label><input id="speed" type="range" min="5" max="120" value="35"></div>
-<div class="row"><label>Humanize <span id="humanVal">20%</span></label><input id="human" type="range" min="0" max="100" value="20"></div>
-</div>
-<p class="status" id="tuneStatus">Auto‑Tune is off.</p>
-</div>
-</section>
+<section id="bass" class="panel"><div class="card"><h2>Bass & 808</h2><div class="grid2"><div class="row"><label>Preset</label><select id="bassType"><option value="sub">Sub Bass</option><option value="808">808</option><option value="reese">Reese</option></select></div><div class="row"><label>Release</label><input id="bassRelease" type="range" min="0.1" max="2" step="0.1" value="0.8"></div></div><div id="bassGrid" class="grid4"></div></div></section>
+
+<section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
+
+<section id="dj" class="panel"><div class="card"><h2>DJ Decks</h2><div class="grid2">
+<div class="deck"><b>DECK A</b><div class="jog">A</div><div class="transport"><button id="deckAPlay">▶</button><button id="deckACue">CUE</button><button id="deckASync">SYNC</button></div><div class="row"><label>Deck A Pitch</label><input id="deckAPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck A Filter</label><input id="deckAFilter" type="range" min="300" max="12000" value="12000"></div></div>
+<div class="deck"><b>DECK B</b><div class="jog">B</div><div class="transport"><button id="deckBPlay">▶</button><button id="deckBCue">CUE</button><button id="deckBSync">SYNC</button></div><div class="row"><label>Deck B Pitch</label><input id="deckBPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck B Filter</label><input id="deckBFilter" type="range" min="300" max="12000" value="12000"></div></div>
+</div><div class="cross"><label>Crossfader</label><input id="crossfader" type="range" min="-1" max="1" step="0.01" value="0"></div></div></section>
+
+<section id="mixer" class="panel"><div class="card"><h2>Mixing Console</h2><div class="grid2">
+<div class="strip"><b>INSTRUMENTS</b><div class="row"><label>Volume</label><input id="instVol" type="range" min="0" max="1" step="0.01" value="0.8"></div><div class="row"><label>Pan</label><input id="instPan" type="range" min="-1" max="1" step="0.01" value="0"></div><div class="row"><label>Low EQ</label><input id="instLow" type="range" min="-12" max="12" value="0"></div><div class="row"><label>High EQ</label><input id="instHigh" type="range" min="-12" max="12" value="0"></div></div>
+<div class="strip"><b>VOCALS</b><div class="row"><label>Volume</label><input id="vocVol" type="range" min="0" max="1" step="0.01" value="0.85"></div><div class="row"><label>Pan</label><input id="vocPan" type="range" min="-1" max="1" step="0.01" value="0"></div><div class="row"><label>Low EQ</label><input id="vocLow" type="range" min="-12" max="12" value="0"></div><div class="row"><label>High EQ</label><input id="vocHigh" type="range" min="-12" max="12" value="0"></div></div>
+<div class="strip"><b>FX</b><div class="row"><label>Delay <span id="delayVal">10%</span></label><input id="delay" type="range" min="0" max="0.6" step="0.01" value="0.1"></div><div class="row"><label>Reverb <span id="reverbVal">12%</span></label><input id="reverb" type="range" min="0" max="0.6" step="0.01" value="0.12"></div><div class="row"><label>Compressor <span id="compVal">20%</span></label><input id="comp" type="range" min="0" max="1" step="0.01" value="0.2"></div></div>
+<div class="strip"><b>MASTER</b><div class="row"><label>Master Volume</label><input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.9"></div><div class="row"><label>Limiter Ceiling</label><input id="limiter" type="range" min="-6" max="0" step="0.1" value="-1"></div><button id="masterMute">Master Mute</button></div>
+</div></div></section>
+
+<section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p><div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div><audio id="player" controls style="width:100%;margin-top:12px"></audio></div></section>
+
+<section id="tune" class="panel"><div class="card"><h2>Auto‑Tune</h2><div class="grid2"><div class="row"><label>Auto‑Tune</label><button id="tuneToggle">Off</button></div><div class="row"><label>Key</label><select id="key"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select></div><div class="row"><label>Scale</label><select id="scale"><option value="major">Major</option><option value="minor">Minor</option></select></div><div class="row"><label>Strength <span id="strengthVal">70%</span></label><input id="strength" type="range" min="0" max="100" value="70"></div><div class="row"><label>Retune Speed <span id="speedVal">35 ms</span></label><input id="speed" type="range" min="5" max="120" value="35"></div><div class="row"><label>Humanize <span id="humanVal">20%</span></label><input id="human" type="range" min="0" max="100" value="20"></div></div><p class="status" id="tuneStatus">Auto‑Tune is off.</p></div></section>
 </div>
 
 <script>
-let ctx=null,stream=null,recorder=null,chunks=[];
+let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-async function audio(){
- try{
-  if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();
-  if(ctx.state!=='running')await ctx.resume();
-  $('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus').textContent='Audio engine running.';
-  return ctx;
- }catch(e){$('#audioStatus').textContent='Audio error: '+(e.message||e);return null}
-}
+function impulse(c){const b=c.createBuffer(2,c.sampleRate*1.4,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4)}return b}
+async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();$('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus')&&($('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){$('#audioStatus')&&($('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
+function syncMixer(){if(!ctx)return;master.gain.value=+$('#masterVol').value;instBus.gain.value=+$('#instVol').value;vocBus.gain.value=+$('#vocVol').value;delayWet.gain.value=+$('#delay').value;reverbWet.gain.value=+$('#reverb').value;compressor.threshold.value=-10-(+$('#comp').value*30);compressor.ratio.value=1.5+(+$('#comp').value*8)}
 $('#audioBtn').onclick=async()=>{const c=await audio();if(!c)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=660;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.15,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.16)};
-function hit(name){
- const c=ctx;if(!c||c.state!=='running')return;
- const t=c.currentTime,o=c.createOscillator(),g=c.createGain();
- o.type=name==='kick'?'sine':name==='hat'?'square':'triangle';
- o.frequency.setValueAtTime(name==='kick'?140:name==='snare'?190:name==='hat'?6500:1200,t);
- if(name==='kick')o.frequency.exponentialRampToValueAtTime(48,t+.12);
- g.gain.setValueAtTime(name==='hat'?.05:.2,t);g.gain.exponentialRampToValueAtTime(.001,t+(name==='kick'?.2:.09));
- o.connect(g).connect(c.destination);o.start(t);o.stop(t+.25);
-}
-$$('.pad').forEach(p=>p.onclick=async()=>{const c=await audio();if(c)hit(p.dataset.drum)});
+function tone(freq,dur=.45,type='sine',gain=.16,out=instBus,filterHz=12000){const c=ctx;if(!c||c.state!=='running')return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter();o.type=type;o.frequency.setValueAtTime(freq,t);f.type='lowpass';f.frequency.value=filterHz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(f).connect(g).connect(out);o.start(t);o.stop(t+dur+.05)}
+function drum(name){const c=ctx;if(!c)return;const t=c.currentTime;if(name==='hat'||name==='crash'){const len=c.sampleRate*(name==='crash'?.5:.08),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type='highpass';f.frequency.value=name==='crash'?3500:6500;g.gain.setValueAtTime(name==='crash'?.12:.08,t);g.gain.exponentialRampToValueAtTime(.001,t+(name==='crash'?.5:.08));s.connect(f).connect(g).connect(instBus);s.start();return}const map={kick:[130,48,.22,'sine'],snare:[190,190,.11,'triangle'],clap:[1100,900,.09,'square'],tom:[120,80,.25,'sine'],rim:[700,700,.06,'square'],perc:[420,300,.12,'triangle']},m=map[name]||map.kick,o=c.createOscillator(),g=c.createGain();o.type=m[3];o.frequency.setValueAtTime(m[0],t);o.frequency.exponentialRampToValueAtTime(m[1],t+m[2]);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+m[2]);o.connect(g).connect(instBus);o.start();o.stop(t+m[2]+.04)}
+$$('.pad').forEach(p=>p.onclick=async()=>{if(await audio())drum(p.dataset.drum)});
+const notes=[261.63,293.66,329.63,349.23,392,440,493.88],names=['C','D','E','F','G','A','B'];
+function buildKeys(id,fn){const g=$(id);g.innerHTML='';notes.forEach((f,i)=>{const b=document.createElement('button');b.className='key';b.textContent=names[i];b.onclick=async()=>{if(await audio())fn(f)};g.appendChild(b)})}
+buildKeys('#keysGrid',f=>tone(f,.65,$('#keyType').value,.13));
+buildKeys('#synthGrid',f=>tone(f,+$('#release').value,$('#oscType').value,.13,instBus,+$('#cutoff').value));
+const bass=[65.41,73.42,82.41,87.31,98,110,123.47,130.81];bass.forEach((f,i)=>{const b=document.createElement('button');b.textContent=names[i%7]+' Bass';b.onclick=async()=>{if(!(await audio()))return;const p=$('#bassType').value;const type=p==='reese'?'sawtooth':'sine';tone(f,+$('#bassRelease').value,type,p==='808'?.28:.18)};$('#bassGrid').appendChild(b)});
+function deckStart(deck){if(deckTimers[deck]){clearInterval(deckTimers[deck]);deckTimers[deck]=null;$('#deck'+deck+'Play').textContent='▶';return}audio().then(c=>{if(!c)return;let step=0;deckTimers[deck]=setInterval(()=>{const filt=+$('#deck'+deck+'Filter').value;const pitch=+$('#deck'+deck+'Pitch').value;const base=deck==='A'?110:146.83;tone(base*Math.pow(2,pitch/12)*(step%4===0?1:.5),.12,deck==='A'?'square':'sawtooth',.08,instBus,filt);step++},250);$('#deck'+deck+'Play').textContent='■'})}
+$('#deckAPlay').onclick=()=>deckStart('A');$('#deckBPlay').onclick=()=>deckStart('B');$('#deckACue').onclick=()=>tone(660,.08,'square',.08);$('#deckBCue').onclick=()=>tone(880,.08,'square',.08);$('#deckASync').onclick=$('#deckBSync').onclick=()=>{$('#deckAPitch').value=0;$('#deckBPitch').value=0};
 $$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
+['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%'});
+$('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
+$('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
 $('#micBtn').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({audio:true});$('#micStatus').textContent='Microphone ready.';$('#recBtn').disabled=false;$('#micBtn').classList.add('on')}catch(e){$('#micStatus').textContent='Mic permission failed: '+(e.message||e)}};
 $('#recBtn').onclick=()=>{if(!stream)return;if(!recorder||recorder.state==='inactive'){chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});$('#player').src=URL.createObjectURL(b);$('#micStatus').textContent='Take recorded.'};recorder.start();$('#recBtn').textContent='Stop Recording';$('#micStatus').textContent='Recording…'}else{recorder.stop();$('#recBtn').textContent='Start Recording'}};
 $('#tuneToggle').onclick=()=>{const on=!$('#tuneToggle').classList.contains('on');$('#tuneToggle').classList.toggle('on',on);$('#tuneToggle').textContent=on?'On':'Off';$('#tuneStatus').textContent=on?'Auto‑Tune armed for vocal processing.':'Auto‑Tune is off.'};
-$('#strength').oninput=e=>$('#strengthVal').textContent=e.target.value+'%';
-$('#speed').oninput=e=>$('#speedVal').textContent=e.target.value+' ms';
-$('#human').oninput=e=>$('#humanVal').textContent=e.target.value+'%';
+$('#strength').oninput=e=>$('#strengthVal').textContent=e.target.value+'%';$('#speed').oninput=e=>$('#speedVal').textContent=e.target.value+' ms';$('#human').oninput=e=>$('#humanVal').textContent=e.target.value+'%';
 </script>
 </body>
 </html>
