@@ -21,10 +21,10 @@
       <p class="launch-copy">Create a beat, record vocals, arrange the song and export a mastered WAV — all from your browser.</p>
       <label class="launch-name">Project name<input id="launchProjectName" value="Untitled Royce Session" maxlength="60" /></label>
       <div class="launch-actions">
-        <button id="launchResume" class="big-btn accent-btn" type="button" onclick="document.getElementById('launchScreen').classList.add('hidden');">Resume Session</button>
-        <button id="launchNew" class="big-btn" type="button" onclick="try{localStorage.removeItem('royceStudioProject');localStorage.removeItem('royceStudioRecoveryV13');}catch(e){} document.getElementById('launchScreen').classList.add('hidden');">New Project</button>
+        <button id="launchResume" class="big-btn accent-btn" type="button" onclick="safeBoot()">Resume Session</button>
+        <button id="launchNew" class="big-btn" type="button" onclick="try{localStorage.clear()}catch(e){} safeBoot()">New Project</button>
       </div>
-      <button id="launchOpen" class="text-btn launch-open" type="button" onclick="document.getElementById('launchScreen').classList.add('hidden');">Open Studio Without Changes</button>
+      <button id="launchOpen" class="text-btn launch-open" type="button" onclick="safeBoot()">Open Studio Without Changes</button>
       <div class="launch-tips"><span>🎧 Headphones recommended</span><span>🎙️ Mic permission is requested only when you arm it</span><span>💾 Export a project file for backup</span></div>
     </div>
   </div>
@@ -259,6 +259,46 @@
     </div>
     <footer><span id="transportStatus">Ready</span><span>Royce Studio v1.0.4</span></footer>
   </main>
-  <script src="app.js?v=104audio1"></script>
+  <script>
+window.safeBoot=function(){
+  const l=document.getElementById('launchScreen');
+  if(l) l.style.display='none';
+  document.body.classList.add('safe-booted');
+};
+window.__royceCtx=null;
+window.royceSafeAudio=async function(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) throw new Error('Web Audio unavailable');
+    const c=window.__royceCtx||(window.__royceCtx=new AC());
+    if(c.state!=='running') await c.resume();
+    const t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.frequency.value=440;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.2,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+0.18);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+0.2);
+    const b=document.getElementById('audioUnlock');if(b){b.textContent='Audio Ready';b.classList.add('on')}
+    return c;
+  }catch(e){
+    const s=document.getElementById('transportStatus');if(s)s.textContent='Audio start failed: '+(e.message||e);
+    return null;
+  }
+};
+window.addEventListener('DOMContentLoaded',()=>{
+  const b=document.getElementById('audioUnlock');
+  if(b) b.onclick=window.royceSafeAudio;
+  document.querySelectorAll('.pad').forEach(p=>{
+    p.addEventListener('pointerdown',async()=>{
+      const c=await window.royceSafeAudio(); if(!c)return;
+      const t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+      const name=p.dataset.drum;
+      o.type=name==='kick'?'sine':name==='hat'?'square':'triangle';
+      o.frequency.value=name==='kick'?80:name==='snare'?180:name==='hat'?6000:1200;
+      g.gain.setValueAtTime(name==='hat'?0.06:0.16,t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+(name==='kick'?0.22:0.09));
+      o.connect(g).connect(c.destination);o.start(t);o.stop(t+0.25);
+    },{passive:true});
+  });
+});
+</script>
+<script src="app.js?v=104safeboot1" defer></script>
 </body>
 </html>
