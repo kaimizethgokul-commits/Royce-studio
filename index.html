@@ -9,6 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="Royce Studio" />
 <title>Royce Studio</title>
 <link rel="stylesheet" href="styles.css?v=104fix2" />
+<style>
+#launchScreen,#launchScreen .launch-card,#launchScreen button,#launchScreen input{pointer-events:auto!important;touch-action:manipulation!important}
+</style>
 </head>
 <body>
   <div id="launchScreen" class="launch-screen" role="dialog" aria-modal="true" aria-labelledby="launchTitle">
@@ -18,10 +21,10 @@
       <p class="launch-copy">Create a beat, record vocals, arrange the song and export a mastered WAV — all from your browser.</p>
       <label class="launch-name">Project name<input id="launchProjectName" value="Untitled Royce Session" maxlength="60" /></label>
       <div class="launch-actions">
-        <button id="launchResume" class="big-btn accent-btn">Resume Session</button>
-        <button id="launchNew" class="big-btn">New Project</button>
+        <button id="launchResume" class="big-btn accent-btn" type="button" onclick="document.getElementById('launchScreen').classList.add('hidden');">Resume Session</button>
+        <button id="launchNew" class="big-btn" type="button" onclick="try{localStorage.removeItem('royceStudioProject');localStorage.removeItem('royceStudioRecoveryV13');}catch(e){} document.getElementById('launchScreen').classList.add('hidden');">New Project</button>
       </div>
-      <button id="launchOpen" class="text-btn launch-open">Open Studio Without Changes</button>
+      <button id="launchOpen" class="text-btn launch-open" type="button" onclick="document.getElementById('launchScreen').classList.add('hidden');">Open Studio Without Changes</button>
       <div class="launch-tips"><span>🎧 Headphones recommended</span><span>🎙️ Mic permission is requested only when you arm it</span><span>💾 Export a project file for backup</span></div>
     </div>
   </div>
