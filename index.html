@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Royce Studio" />
+<title>Royce Studio</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="launchScreen" class="launch-screen" role="dialog" aria-modal="true" aria-labelledby="launchTitle">
+    <div class="launch-card">
+      <p class="eyebrow">ROYCE</p>
+      <h1 id="launchTitle">Studio <span>1.0.4</span></h1>
+      <p class="launch-copy">Create a beat, record vocals, arrange the song and export a mastered WAV — all from your browser.</p>
+      <label class="launch-name">Project name<input id="launchProjectName" value="Untitled Royce Session" maxlength="60" /></label>
+      <div class="launch-actions">
+        <button id="launchResume" class="big-btn accent-btn">Resume Session</button>
+        <button id="launchNew" class="big-btn">New Project</button>
+      </div>
+      <button id="launchOpen" class="text-btn launch-open">Open Studio Without Changes</button>
+      <div class="launch-tips"><span>🎧 Headphones recommended</span><span>🎙️ Mic permission is requested only when you arm it</span><span>💾 Export a project file for backup</span></div>
+    </div>
+  </div>
+  <main class="app">
+    <header class="topbar">
+      <div><p class="eyebrow">ROYCE</p><h1>Studio</h1></div>
+      <button id="audioUnlock" class="pill">Enable Audio</button>
+    </header>
+
+    <section class="transport card">
+      <button id="playBtn" class="transport-btn primary">▶</button>
+      <button id="stopBtn" class="transport-btn">■</button>
+      <button id="recordBtn" class="transport-btn record">●</button>
+      <div class="tempo-box"><label for="bpm">BPM</label><input id="bpm" type="number" min="40" max="220" value="100" inputmode="numeric" /></div>
+      <button id="metroBtn" class="pill">Metronome Off</button>
+      <div class="tempo-tools">
+        <button id="tapTempo" class="pill tempo-action">Tap Tempo</button>
+        <button id="halfTempo" class="pill tempo-action">½ BPM</button>
+        <button id="doubleTempo" class="pill tempo-action">2× BPM</button>
+        <select id="bpmPreset" class="tempo-select" aria-label="BPM preset">
+          <option value="">Presets</option><option value="70">70</option><option value="80">80</option><option value="90">90</option><option value="100">100</option><option value="110">110</option><option value="120">120</option><option value="130">130</option><option value="140">140</option><option value="150">150</option><option value="160">160</option>
+        </select>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Studio sections">
+      <button class="tab active" data-tab="drums">Drums</button>
+      <button class="tab" data-tab="keys">Keys</button>
+      <button class="tab" data-tab="bass">Bass</button>
+      <button class="tab" data-tab="voice">Voice</button>
+      <button class="tab" data-tab="timeline">Timeline</button>
+      <button class="tab" data-tab="mixer">Mixer</button>
+      <button class="tab" data-tab="project">Project</button>
+    </nav>
+
+    <section id="drums" class="panel active">
+      <div class="card">
+        <div class="section-heading"><h2>Drum Pads</h2><span>Tap to play</span></div>
+        <div class="pad-grid">
+          <button class="pad" data-drum="kick"><b>KICK</b><small>01</small></button>
+          <button class="pad" data-drum="snare"><b>SNARE</b><small>02</small></button>
+          <button class="pad" data-drum="hat"><b>HAT</b><small>03</small></button>
+          <button class="pad" data-drum="clap"><b>CLAP</b><small>04</small></button>
+        </div>
+      </div>
+      <div class="instrument-toolbar card gap-top compact-card">
+        <label>DRUM KIT<select id="drumKit"><option value="studio">Studio</option><option value="trap">Trap</option><option value="lofi">Lo-Fi</option><option value="punch">Punch</option></select></label>
+        <label>PAD VELOCITY <span id="drumVelocityValue">100</span><input id="drumVelocity" type="range" min="20" max="127" value="100"></label>
+      </div>
+      <div class="card gap-top">
+        <div class="section-heading"><h2>16-Step Sequencer</h2><button id="clearPattern" class="text-btn">Clear</button></div>
+        <div id="sequencer" class="sequencer"></div>
+      </div>
+    </section>
+
+    <section id="keys" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Keys & Pads</h2><span>v0.10 instruments</span></div>
+        <div class="instrument-toolbar">
+          <label>INSTRUMENT<select id="keyPreset"><option value="poly">Poly</option><option value="pluck">Pluck</option><option value="bell">Bell</option><option value="analog">Analog</option><option value="dreamPad">Dream Pad</option><option value="warmPad">Warm Pad</option><option value="darkPad">Dark Pad</option></select></label>
+          <label>VELOCITY <span id="keyVelocityValue">96</span><input id="keyVelocity" type="range" min="20" max="127" value="96"></label>
+        </div>
+        <div id="piano" class="piano"></div>
+      </div>
+    </section>
+    <section id="bass" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Bass & 808</h2><span>Sub / 808 / Reese</span></div>
+        <div class="instrument-toolbar">
+          <label>BASS PRESET<select id="bassPreset"><option value="sub">Sub</option><option value="808">808</option><option value="reese">Reese</option><option value="analogBass">Analog Bass</option></select></label>
+          <label>VELOCITY <span id="bassVelocityValue">110</span><input id="bassVelocity" type="range" min="20" max="127" value="110"></label>
+          <label>808 RELEASE <span id="release808Value">0.9s</span><input id="release808" type="range" min="0.15" max="2.5" step="0.05" value="0.9"></label>
+          <label class="toggle-label"><span>GLIDE</span><button id="glide808" class="pill small-pill">Off</button></label>
+        </div>
+        <div id="bassKeys" class="bass-grid"></div>
+        <div class="section-heading gap-top"><h2>808 Pads</h2><span>Low octave</span></div>
+        <div id="pads808" class="pad808-grid"></div>
+      </div>
+    </section>
+
+    <section id="voice" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Voice</h2><span>Multitrack vocals</span></div>
+        <p id="micStatus" class="status">Mic not armed.</p>
+        <div class="voice-actions"><button id="armMic" class="big-btn">Arm Microphone</button><button id="playTake" class="big-btn" disabled>Play Last Take</button></div>
+        <div class="voice-actions"><button id="punchMode" class="big-btn">Punch-In: Off</button><button id="addEmptyTake" class="big-btn">+ Vocal Lane</button></div>
+        <audio id="takePlayer" controls class="audio-player"></audio>
+        <div class="section-heading vocal-heading"><h2>Vocal Takes</h2><span id="takeCount">0 takes</span></div>
+        <div id="vocalTakes" class="vocal-takes"></div>
+      </div>
+    </section>
+
+    <section id="timeline" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Song Arrangement</h2><span id="songLengthLabel">16 bars</span></div>
+        <div class="arrangement-toolbar">
+          <button id="addSection" class="big-btn">+ Add Section</button>
+          <button id="resetArrangement" class="big-btn">Reset Structure</button>
+        </div>
+        <div class="editor-toolbar" id="editorToolbar">
+          <div class="editor-history"><button id="undoEdit" class="big-btn" disabled>↶ Undo</button><button id="redoEdit" class="big-btn" disabled>↷ Redo</button></div>
+          <label>Snap<select id="snapGrid"><option value="0">Off</option><option value="16">1/16</option><option value="4" selected>1/4 beat</option><option value="1">1 bar</option></select></label>
+          <label>Zoom<input id="timelineZoom" type="range" min="1" max="4" step="0.25" value="1"><span id="zoomValue">100%</span></label>
+          <div class="editor-clipboard"><button id="copyClip" class="big-btn" disabled>Copy</button><button id="pasteClip" class="big-btn" disabled>Paste</button></div>
+        </div>
+        <p id="editorStatus" class="hint">Select an audio or vocal clip, then split, copy, paste or move it. Editing snaps to the selected grid.</p>
+
+        <div id="arrangement" class="arrangement"></div><span id="loopClip" hidden></span><span id="vocalClip" hidden></span>
+        <div class="arrangement-strip" id="arrangementStrip"></div>
+        <div class="timeline-actions">
+          <label class="big-btn file-btn">Import Audio<input id="importAudio" type="file" accept="audio/*" multiple /></label>
+          <button id="detectBpm" class="big-btn" disabled>Detect BPM</button>
+          <button id="clearLoop" class="big-btn" disabled>Remove Loop</button>
+        </div>
+        <p id="bpmDetectStatus" class="hint">Build a full song by changing section lengths, duplicating sections, and switching tracks on or off.</p>
+        <div class="section-heading audio-track-heading"><h2>Imported Audio Tracks</h2><span id="audioTrackCount">0 tracks</span></div>
+        <div id="audioTracks" class="vocal-takes"></div>
+      </div>
+    </section>
+
+    <section id="mixer" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Mixer</h2><span>v0.12 mix + mastering console</span></div>
+        <div class="mixer-grid pro-mixer">
+          <div class="channel pro-channel" data-meter-channel="drums"><div class="channel-title"><b>Drums</b><span class="meter-shell"><i id="drumsMeter" class="meter-fill"></i></span></div><label>VOL<input id="drumsVol" type="range" min="0" max="1" step="0.01" value="0.85"></label><label>Low EQ <span id="drumsLowValue">0 dB</span><input id="drumsLow" type="range" min="-12" max="12" step="1" value="0"></label><label>Mid EQ <span id="drumsMidValue">0 dB</span><input id="drumsMid" type="range" min="-12" max="12" step="1" value="0"></label><label>High EQ <span id="drumsHighValue">0 dB</span><input id="drumsHigh" type="range" min="-12" max="12" step="1" value="0"></label><label>Bus Comp <span id="drumsCompValue">0%</span><input id="drumsComp" type="range" min="0" max="1" step="0.01" value="0"></label><button id="muteDrums">Mute</button></div>
+          <div class="channel pro-channel" data-meter-channel="loop"><div class="channel-title"><b>Audio</b><span class="meter-shell"><i id="loopMeter" class="meter-fill"></i></span></div><label>VOL<input id="loopVol" type="range" min="0" max="1" step="0.01" value="0.8"></label><label>Low EQ <span id="loopLowValue">0 dB</span><input id="loopLow" type="range" min="-12" max="12" step="1" value="0"></label><label>Mid EQ <span id="loopMidValue">0 dB</span><input id="loopMid" type="range" min="-12" max="12" step="1" value="0"></label><label>High EQ <span id="loopHighValue">0 dB</span><input id="loopHigh" type="range" min="-12" max="12" step="1" value="0"></label><label>Bus Comp <span id="loopCompValue">0%</span><input id="loopComp" type="range" min="0" max="1" step="0.01" value="0"></label><button id="muteLoop">Mute</button></div>
+          <div class="channel pro-channel" data-meter-channel="vocal"><div class="channel-title"><b>Vocals</b><span class="meter-shell"><i id="vocalMeter" class="meter-fill"></i></span></div><label>VOL<input id="vocalVol" type="range" min="0" max="1" step="0.01" value="0.85"></label><label>Low EQ <span id="vocalLowValue">0 dB</span><input id="vocalLow" type="range" min="-12" max="12" step="1" value="0"></label><label>Mid EQ <span id="vocalMidValue">0 dB</span><input id="vocalMid" type="range" min="-12" max="12" step="1" value="0"></label><label>High EQ <span id="vocalHighValue">0 dB</span><input id="vocalHigh" type="range" min="-12" max="12" step="1" value="0"></label><label>Compress <span id="vocalCompValue">35%</span><input id="vocalComp" type="range" min="0" max="1" step="0.01" value="0.35"></label><label>Delay Send <span id="vocalDelayValue">12%</span><input id="vocalDelaySend" type="range" min="0" max="0.8" step="0.01" value="0.12"></label><label>Reverb Send <span id="vocalReverbValue">18%</span><input id="vocalReverbSend" type="range" min="0" max="0.8" step="0.01" value="0.18"></label><label>Pitch <span id="vocalPitchValue">0c</span><input id="vocalPitch" type="range" min="-100" max="100" step="1" value="0"></label><button id="muteVocal">Mute</button></div>
+          <div class="channel master-channel" data-meter-channel="master"><div class="channel-title"><b>Master</b><span class="meter-shell"><i id="masterMeter" class="meter-fill"></i></span></div><label>MASTER<input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.9"></label><label>Delay<input id="delayMix" type="range" min="0" max="0.5" step="0.01" value="0.1"></label><label>Reverb<input id="reverbMix" type="range" min="0" max="0.5" step="0.01" value="0.12"></label><label>Glue Comp <span id="masterCompValue">20%</span><input id="masterComp" type="range" min="0" max="1" step="0.01" value="0.2"></label><label>Width <span id="masterWidthValue">100%</span><input id="masterWidth" type="range" min="0" max="1.8" step="0.01" value="1"></label><label>Ceiling <span id="limiterValue">-1.0 dB</span><input id="masterLimiter" type="range" min="-6" max="0" step="0.1" value="-1"></label><span class="limiter-badge">Limiter ON</span></div>
+        </div>
+        <div class="vocal-strip">
+          <div class="section-heading"><h3>Vocal Channel Strip</h3><span>Key-aware tools</span></div>
+          <div class="strip-grid">
+            <label>Key<select id="songKey"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select></label>
+            <label>Scale<select id="songScale"><option value="major">Major</option><option value="minor">Minor</option></select></label>
+            <label>Vocal Preset<select id="vocalPreset"><option value="custom">Custom</option><option value="clean">Clean</option><option value="warm">Warm</option><option value="rap">Rap Presence</option><option value="air">Airy</option><option value="night">Late Night</option></select></label>
+            <button id="applyVocalPreset" class="big-btn">Apply Preset</button>
+          </div>
+          <div class="strip-grid two">
+            <label>Noise Gate <span id="gateValue">-48 dB</span><input id="vocalGate" type="range" min="-72" max="-18" step="1" value="-48"></label>
+            <label>De-Esser <span id="deEsserValue">25%</span><input id="vocalDeEsser" type="range" min="0" max="1" step="0.01" value="0.25"></label>
+          </div>
+          <div class="pitch-box">
+            <button id="analyzePitch" class="big-btn">Analyze Last Vocal</button>
+            <div><b id="pitchNote">—</b><span id="pitchHz">No pitch analysis yet</span></div>
+          </div>
+          <p id="pitchGuide" class="hint">Select the song key and scale, then analyze a recorded vocal take to see the nearest detected note and whether it belongs to the selected scale.</p>
+          <div class="v09-tune-grid">
+            <label>Scale Snap <span id="tuneAmountValue">65%</span><input id="tuneAmount" type="range" min="0" max="1" step="0.01" value="0.65"></label>
+            <label>Vocal Double <span id="doubleMixValue">0%</span><input id="doubleMix" type="range" min="0" max="0.7" step="0.01" value="0"></label>
+            <label>Harmony<select id="harmonyMode"><option value="off">Off</option><option value="third">Scale Third</option><option value="fifth">Scale Fifth</option><option value="octave">Octave</option></select></label>
+            <label>Harmony Mix <span id="harmonyMixValue">0%</span><input id="harmonyMix" type="range" min="0" max="0.7" step="0.01" value="0"></label>
+          </div>
+          <div class="v09-comp-row"><button id="compMode" class="big-btn">Comp Mode: Off</button><span id="compStatus" class="hint">Mark vocal takes as Comp to build the active performance.</span></div>
+        </div>
+        <div class="mastering-card">
+  <div class="section-heading"><h3>Mastering</h3><span>v0.12</span></div>
+  <div class="mastering-grid">
+    <label>Low Tone <span id="masterLowValue">0 dB</span><input id="masterLow" type="range" min="-6" max="6" step="0.5" value="0"></label>
+    <label>High Tone <span id="masterHighValue">0 dB</span><input id="masterHigh" type="range" min="-6" max="6" step="0.5" value="0"></label>
+    <label>Drive <span id="masterDriveValue">0%</span><input id="masterDrive" type="range" min="0" max="1" step="0.01" value="0"></label>
+    <label>Loudness Target<select id="loudnessTarget"><option value="-14">Streaming · -14</option><option value="-11" selected>Balanced · -11</option><option value="-9">Loud · -9</option><option value="-8">Max · -8</option></select></label>
+  </div>
+  <div class="master-readout"><span>Export analysis</span><b id="masterAnalysis">Peak — · RMS —</b></div>
+</div>
+<p class="hint mixer-hint">v0.12 adds drum/audio bus compression, master tone, glue compression, stereo width, drive, limiter ceiling and approximate loudness normalization on WAV export. The loudness target is RMS-based guidance, not a certified LUFS meter.</p>
+      </div>
+    </section>
+
+    <section id="project" class="panel">
+      <div class="card">
+        <div class="section-heading"><h2>Project</h2><span>Royce Studio 1.0.4</span></div>
+        <label class="field">Project name<input id="projectName" value="Untitled Royce Session" /></label>
+        <div class="project-actions">
+          <button id="saveProject" class="big-btn">Save Project</button>
+          <button id="saveSnapshot" class="big-btn">Save Snapshot</button>
+          <button id="downloadProject" class="big-btn">Export Project File</button>
+          <label class="big-btn file-btn">Import Project<input id="importProject" type="file" accept="application/json,.json" /></label>
+          <button id="exportTake" class="big-btn" disabled>Export Vocal Take</button>
+          <button id="exportWav" class="big-btn accent-btn">Export Full Song WAV</button>
+        </div>
+        <div class="project-browser-card">
+          <div class="project-browser-head"><div><b>Project Browser</b><span>Local snapshots on this device</span></div><button id="refreshProjects" class="text-btn">Refresh</button></div>
+          <div id="projectBrowser" class="project-browser"></div>
+        </div>
+        <div class="recovery-card">
+          <div><b>Session Recovery</b><span id="recoveryStatus">Autosave is on.</span></div>
+          <button id="restoreRecovery" class="big-btn" disabled>Restore Autosave</button>
+        </div>
+        <p class="hint">Royce Studio 1.0 keeps project media local on this device and maintains an autosave recovery point. Browser storage can still be cleared by the device or browser, so Export Project File remains the safest project backup.</p>
+        <p id="mediaSaveStatus" class="status">Local media store ready.</p>
+        <div class="release-health">
+          <div class="project-browser-head"><div><b>Studio Diagnostics</b><span>Quick checks for this browser</span></div><button id="runDiagnostics" class="text-btn">Run Check</button></div>
+          <div id="diagnosticsList" class="diagnostics-list"><span>Run Check before your first recording session.</span></div>
+        </div>
+        <div class="release-health qa-card">
+          <div class="project-browser-head"><div><b>Release Self-Test</b><span>Fast functional checks before a session</span></div><button id="runSelfTest" class="text-btn">Run Tests</button></div>
+          <div id="selfTestList" class="diagnostics-list"><span>Tests audio APIs, local storage, project serialization and offline WAV rendering support.</span></div>
+        </div>
+
+        <div class="release-health install-card">
+          <div class="project-browser-head"><div><b>Install on iPhone</b><span>Works best when served over HTTPS</span></div><button id="checkInstall" class="text-btn">Check</button></div>
+          <div id="installStatus" class="diagnostics-list"><span>Open in Safari, tap Share, then Add to Home Screen.</span></div>
+          <p class="hint">After the first online load, the app shell can reopen offline. Microphone recording still requires a secure HTTPS origin.</p>
+        </div>
+
+        <div class="release-health deploy-card">
+          <div class="project-browser-head"><div><b>Deployment / Updates</b><span>HTTPS production readiness</span></div><button id="checkDeployment" class="text-btn">Check</button></div>
+          <div id="deploymentStatus" class="diagnostics-list"><span>Publish this folder on an HTTPS static host, then open it in Safari.</span></div>
+          <div class="deploy-actions"><button id="applyUpdate" class="big-btn" disabled>App Up to Date</button><button id="reloadStudio" class="big-btn">Reload Studio</button></div>
+          <p class="hint">When a new Royce Studio build is published, the app checks its service worker and can activate the new cached version without clearing your local projects.</p>
+        </div>
+        <div class="release-health qa-card guided-test-card">
+          <div class="project-browser-head"><div><b>iPhone Guided Test</b><span>Load a known-good mini session and check each real workflow</span></div><button id="loadDemoSession" class="text-btn">Load Demo</button></div>
+          <div class="guided-test-progress"><b id="guidedProgress">0 / 7 passed</b><button id="resetGuidedTest" class="text-btn">Reset</button></div>
+          <div id="guidedTestList" class="guided-test-list">
+            <label><input type="checkbox" data-qa="play"> <span><b>Playback</b><small>Press Play and hear the demo drums.</small></span></label>
+            <label><input type="checkbox" data-qa="keys"> <span><b>Keys + 808</b><small>Tap a key and an 808 pad; both should sound immediately.</small></span></label>
+            <label><input type="checkbox" data-qa="mic"> <span><b>Vocal recording</b><small>Record a short take and confirm a vocal clip appears.</small></span></label>
+            <label><input type="checkbox" data-qa="save"> <span><b>Save + snapshot</b><small>Save the project and create a named snapshot.</small></span></label>
+            <label><input type="checkbox" data-qa="restore"> <span><b>Recovery</b><small>Confirm Session Recovery shows a recent autosave.</small></span></label>
+            <label><input type="checkbox" data-qa="project"> <span><b>Portable backup</b><small>Export a .royce.json project backup.</small></span></label>
+            <label><input type="checkbox" data-qa="wav"> <span><b>Master WAV</b><small>Export the full song WAV and confirm the file saves.</small></span></label>
+          </div>
+          <p class="hint">This checklist is manual by design: it verifies the parts a browser self-test cannot prove, especially touch/audio/microphone/download behavior on your actual iPhone.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="mobile-dock" aria-label="Mobile transport">
+      <button id="dockPlay" aria-label="Play">▶</button><button id="dockStop" aria-label="Stop">■</button><button id="dockRecord" aria-label="Record" class="dock-record">●</button><button id="dockProject" aria-label="Project">⌂</button>
+    </div>
+    <footer><span id="transportStatus">Ready</span><span>Royce Studio v1.0.4</span></footer>
+  </main>
+  <script src="loader.js"></script>
+</body>
+</html>
