@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.2</title>
+<title>Royce Studio v1.3</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -25,13 +25,20 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 .deck{background:#0e0e14;border:1px solid #2a2a38;border-radius:18px;padding:12px}.jog{height:150px;border-radius:50%;border:12px solid #252533;background:radial-gradient(circle,#08080d 0 25%,#222231 26% 60%,#0b0b11 61%);display:grid;place-items:center;margin:12px auto;max-width:150px;font-weight:900}
 .cross{display:grid;gap:8px}.transport{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media(max-width:620px){.grid2,.knobs{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}.keygrid{grid-template-columns:repeat(4,1fr)}.key{height:92px}.pad{height:88px}}
+
+.audio-list{display:grid;gap:10px}.audio-row{background:#0e0e14;border:1px solid #2a2a38;border-radius:16px;padding:12px;display:grid;gap:10px}
+.audio-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.audio-top b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.audio-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.file-btn{display:grid;place-items:center;border:1px solid #343445;background:#242431;color:#fff;border-radius:14px;min-height:46px;padding:10px 13px}
+.file-btn input{display:none}.timeline-ruler{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:12px}.bar{height:44px;border-radius:9px;border:1px solid #303041;background:#111119;display:grid;place-items:center;color:#777;font-size:10px}.bar.on{background:linear-gradient(135deg,#5639bd,#8b5cf6);color:#fff}
+.deck-file{margin:10px 0}.deck audio{width:100%;margin:8px 0}
+@media(max-width:620px){.audio-actions{grid-template-columns:1fr 1fr}.timeline-ruler{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.2</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.3</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
-<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
+<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
 
 <section id="drums" class="panel active"><div class="card"><h2>Drum Machine</h2><p class="status" id="audioStatus">Tap Enable Audio once, then play.</p><div class="pads">
@@ -44,9 +51,16 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
+<section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
+<p class="status">Import beats or loops. Each track can play, loop, mute and set its start bar.</p>
+<div class="grid2"><label class="file-btn">+ Import Audio<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="stopAllAudio">Stop All</button></div>
+<div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
+<div id="audioList" class="audio-list" style="margin-top:12px"><p class="status">No imported tracks yet.</p></div>
+</div></section>
+
 <section id="dj" class="panel"><div class="card"><h2>DJ Decks</h2><div class="grid2">
-<div class="deck"><b>DECK A</b><div class="jog">A</div><div class="transport"><button id="deckAPlay">▶</button><button id="deckACue">CUE</button><button id="deckASync">SYNC</button></div><div class="row"><label>Deck A Pitch</label><input id="deckAPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck A Filter</label><input id="deckAFilter" type="range" min="300" max="12000" value="12000"></div></div>
-<div class="deck"><b>DECK B</b><div class="jog">B</div><div class="transport"><button id="deckBPlay">▶</button><button id="deckBCue">CUE</button><button id="deckBSync">SYNC</button></div><div class="row"><label>Deck B Pitch</label><input id="deckBPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck B Filter</label><input id="deckBFilter" type="range" min="300" max="12000" value="12000"></div></div>
+<div class="deck"><b>DECK A</b><label class="file-btn deck-file">Load Track A<input id="deckAFile" type="file" accept="audio/*"></label><audio id="deckAAudio" preload="metadata"></audio><div class="jog">A</div><div class="transport"><button id="deckAPlay">▶</button><button id="deckACue">CUE</button><button id="deckASync">SYNC</button></div><div class="row"><label>Deck A Pitch</label><input id="deckAPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck A Filter</label><input id="deckAFilter" type="range" min="300" max="12000" value="12000"></div></div>
+<div class="deck"><b>DECK B</b><label class="file-btn deck-file">Load Track B<input id="deckBFile" type="file" accept="audio/*"></label><audio id="deckBAudio" preload="metadata"></audio><div class="jog">B</div><div class="transport"><button id="deckBPlay">▶</button><button id="deckBCue">CUE</button><button id="deckBSync">SYNC</button></div><div class="row"><label>Deck B Pitch</label><input id="deckBPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck B Filter</label><input id="deckBFilter" type="range" min="300" max="12000" value="12000"></div></div>
 </div><div class="cross"><label>Crossfader</label><input id="crossfader" type="range" min="-1" max="1" step="0.01" value="0"></div></div></section>
 
 <section id="mixer" class="panel"><div class="card"><h2>Mixing Console</h2><div class="grid2">
@@ -62,7 +76,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div>
 
 <script>
-let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null};
+let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function impulse(c){const b=c.createBuffer(2,c.sampleRate*1.4,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4)}return b}
 async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();$('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus')&&($('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){$('#audioStatus')&&($('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
@@ -76,9 +90,54 @@ function buildKeys(id,fn){const g=$(id);g.innerHTML='';notes.forEach((f,i)=>{con
 buildKeys('#keysGrid',f=>tone(f,.65,$('#keyType').value,.13));
 buildKeys('#synthGrid',f=>tone(f,+$('#release').value,$('#oscType').value,.13,instBus,+$('#cutoff').value));
 const bass=[65.41,73.42,82.41,87.31,98,110,123.47,130.81];bass.forEach((f,i)=>{const b=document.createElement('button');b.textContent=names[i%7]+' Bass';b.onclick=async()=>{if(!(await audio()))return;const p=$('#bassType').value;const type=p==='reese'?'sawtooth':'sine';tone(f,+$('#bassRelease').value,type,p==='808'?.28:.18)};$('#bassGrid').appendChild(b)});
-function deckStart(deck){if(deckTimers[deck]){clearInterval(deckTimers[deck]);deckTimers[deck]=null;$('#deck'+deck+'Play').textContent='▶';return}audio().then(c=>{if(!c)return;let step=0;deckTimers[deck]=setInterval(()=>{const filt=+$('#deck'+deck+'Filter').value;const pitch=+$('#deck'+deck+'Pitch').value;const base=deck==='A'?110:146.83;tone(base*Math.pow(2,pitch/12)*(step%4===0?1:.5),.12,deck==='A'?'square':'sawtooth',.08,instBus,filt);step++},250);$('#deck'+deck+'Play').textContent='■'})}
-$('#deckAPlay').onclick=()=>deckStart('A');$('#deckBPlay').onclick=()=>deckStart('B');$('#deckACue').onclick=()=>tone(660,.08,'square',.08);$('#deckBCue').onclick=()=>tone(880,.08,'square',.08);$('#deckASync').onclick=$('#deckBSync').onclick=()=>{$('#deckAPitch').value=0;$('#deckBPitch').value=0};
-$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
+function loadDeck(deck,file){
+ const a=$('#deck'+deck+'Audio'); if(a.src)URL.revokeObjectURL(a.src); a.src=URL.createObjectURL(file); a.load();
+ $('#deck'+deck+'Play').textContent='▶';
+}
+function deckStart(deck){
+ const a=$('#deck'+deck+'Audio');
+ if(a&&a.src){
+   if(a.paused){a.play();$('#deck'+deck+'Play').textContent='■'}else{a.pause();$('#deck'+deck+'Play').textContent='▶'}
+   return;
+ }
+ if(deckTimers[deck]){clearInterval(deckTimers[deck]);deckTimers[deck]=null;$('#deck'+deck+'Play').textContent='▶';return}
+ audio().then(c=>{if(!c)return;let step=0;deckTimers[deck]=setInterval(()=>{const filt=+$('#deck'+deck+'Filter').value;const pitch=+$('#deck'+deck+'Pitch').value;const base=deck==='A'?110:146.83;tone(base*Math.pow(2,pitch/12)*(step%4===0?1:.5),.12,deck==='A'?'square':'sawtooth',.08,instBus,filt);step++},250);$('#deck'+deck+'Play').textContent='■'})
+}
+$('#deckAFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('A',f)};
+$('#deckBFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('B',f)};
+$('#deckAPlay').onclick=()=>deckStart('A');$('#deckBPlay').onclick=()=>deckStart('B');
+$('#deckACue').onclick=()=>{const a=$('#deckAAudio');if(a.src){a.currentTime=0}else tone(660,.08,'square',.08)};
+$('#deckBCue').onclick=()=>{const a=$('#deckBAudio');if(a.src){a.currentTime=0}else tone(880,.08,'square',.08)};
+$('#deckASync').onclick=$('#deckBSync').onclick=()=>{$('#deckAPitch').value=0;$('#deckBPitch').value=0};
+['A','B'].forEach(d=>$('#deck'+d+'Pitch').oninput=e=>{const a=$('#deck'+d+'Audio');if(a.src)a.playbackRate=Math.max(.5,Math.min(1.5,Math.pow(2,(+e.target.value)/12)))});
+$('#crossfader').oninput=e=>{const x=+e.target.value,a=$('#deckAAudio'),b=$('#deckBAudio');a.volume=Math.min(1,(1-x)/2*1.6);b.volume=Math.min(1,(1+x)/2*1.6)};
+
+function renderAudioTracks(){
+ const host=$('#audioList');
+ if(!audioTracks.length){host.innerHTML='<p class="status">No imported tracks yet.</p>';return}
+ host.innerHTML='';
+ audioTracks.forEach((t,i)=>{
+  const row=document.createElement('div');row.className='audio-row';
+  row.innerHTML='<div class="audio-top"><b></b><span class="badge">Track '+(i+1)+'</span></div>'+
+  '<audio controls preload="metadata" style="width:100%"></audio>'+
+  '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="loop">Loop Off</button><button data-act="remove">Remove</button></div>'+
+  '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+t.audio.volume+'"></div>'+
+  '<div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div></div>';
+  row.querySelector('b').textContent=t.name; const a=row.querySelector('audio');a.src=t.url;a.loop=t.loop;a.volume=t.audio.volume;t.audio=a;
+  row.querySelector('[data-act="play"]').onclick=()=>a.paused?a.play():a.pause();
+  row.querySelector('[data-act="loop"]').onclick=e=>{t.loop=!t.loop;a.loop=t.loop;e.target.textContent=t.loop?'Loop On':'Loop Off';e.target.classList.toggle('on',t.loop)};
+  row.querySelector('[data-act="remove"]').onclick=()=>{a.pause();URL.revokeObjectURL(t.url);audioTracks.splice(i,1);renderAudioTracks();paintBars()};
+  row.querySelector('[data-act="vol"]').oninput=e=>a.volume=+e.target.value;
+  row.querySelector('[data-act="bar"]').oninput=e=>{t.bar=+e.target.value;paintBars()};
+  host.appendChild(row);
+ });
+}
+function paintBars(){
+ $('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('on',audioTracks.some(t=>t.bar===i+1)));
+}
+$('#importTracks').onchange=e=>{[...(e.target.files||[])].forEach(f=>audioTracks.push({name:f.name,url:URL.createObjectURL(f),audio:new Audio(),loop:false,bar:1}));renderAudioTracks();paintBars();e.target.value=''};
+$('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{t.audio.pause();t.audio.currentTime=0});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
+$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
 ['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%'});
 $('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
 $('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
