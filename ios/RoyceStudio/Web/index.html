@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.15 iOS</title>
+<title>Royce Studio v1.16 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.15 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.16 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -78,8 +78,8 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div></section>
 
 <section id="dj" class="panel"><div class="card"><h2>DJ Decks</h2><div class="grid2">
-<div class="deck"><b>DECK A</b><label class="file-btn deck-file">Load Track A<input id="deckAFile" type="file" accept="audio/*"></label><audio id="deckAAudio" preload="metadata"></audio><div class="jog">A</div><div class="transport"><button id="deckAPlay">▶</button><button id="deckACue">CUE</button><button id="deckASync">SYNC</button></div><div class="row"><label>Deck A Pitch</label><input id="deckAPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck A Filter</label><input id="deckAFilter" type="range" min="300" max="12000" value="12000"></div></div>
-<div class="deck"><b>DECK B</b><label class="file-btn deck-file">Load Track B<input id="deckBFile" type="file" accept="audio/*"></label><audio id="deckBAudio" preload="metadata"></audio><div class="jog">B</div><div class="transport"><button id="deckBPlay">▶</button><button id="deckBCue">CUE</button><button id="deckBSync">SYNC</button></div><div class="row"><label>Deck B Pitch</label><input id="deckBPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck B Filter</label><input id="deckBFilter" type="range" min="300" max="12000" value="12000"></div></div>
+<div class="deck"><b>DECK A</b><div class="grid2 deck-file"><label class="file-btn">Browser A<input id="deckAFile" type="file" accept="audio/*"></label><button id="nativeDeckAImport">iPhone Files A</button></div><p class="status" id="deckAName">No track loaded.</p><audio id="deckAAudio" preload="metadata"></audio><div class="jog">A</div><div class="transport"><button id="deckAPlay">▶</button><button id="deckACue">CUE</button><button id="deckASync">SYNC</button></div><div class="row"><label>Deck A Pitch</label><input id="deckAPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck A Filter</label><input id="deckAFilter" type="range" min="300" max="12000" value="12000"></div></div>
+<div class="deck"><b>DECK B</b><div class="grid2 deck-file"><label class="file-btn">Browser B<input id="deckBFile" type="file" accept="audio/*"></label><button id="nativeDeckBImport">iPhone Files B</button></div><p class="status" id="deckBName">No track loaded.</p><audio id="deckBAudio" preload="metadata"></audio><div class="jog">B</div><div class="transport"><button id="deckBPlay">▶</button><button id="deckBCue">CUE</button><button id="deckBSync">SYNC</button></div><div class="row"><label>Deck B Pitch</label><input id="deckBPitch" type="range" min="-12" max="12" value="0"></div><div class="row"><label>Deck B Filter</label><input id="deckBFilter" type="range" min="300" max="12000" value="12000"></div></div>
 </div><div class="cross"><label>Crossfader</label><input id="crossfader" type="range" min="-1" max="1" step="0.01" value="0"></div></div></section>
 
 <section id="mixer" class="panel"><div class="card"><h2>Mixing Console</h2><div class="grid2">
@@ -106,8 +106,8 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div>
 
 <script>
-let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false;
-const $=s=>document.querySelector(s),$=s=>[...document.querySelectorAll(s)];
+let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false,nativeDecks={A:null,B:null},nativeDeckPlaying={A:false,B:false};
+const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 const RS_MEDIA_DB='RoyceStudioMediaV1',RS_MEDIA_STORE='audio';
 function rsMediaDB(){
  return new Promise((resolve,reject)=>{
@@ -141,71 +141,120 @@ function nativeTone(freq,type='sine',dur=.45,gain=.16){if(nativeAudioAvailable()
 function pushNativeVocalFX(){
  if(!nativeAudioAvailable()||!window.royceNativeAudio.vocalFX)return;
  window.royceNativeAudio.vocalFX(
-   +$('#nativeMonitorLevel').value,
-   +$('#vocLow').value,
-   +$('#vocHigh').value,
-   +$('#reverb').value,
-   +$('#delay').value
+   +q('#nativeMonitorLevel').value,
+   +q('#vocLow').value,
+   +q('#vocHigh').value,
+   +q('#reverb').value,
+   +q('#delay').value
  );
 }
 function pushNativeMixer(){
  if(!nativeAudioAvailable()||!window.royceNativeAudio.mixer)return;
  window.royceNativeAudio.mixer({
-   instrumentVolume:+$('#instVol').value,
-   instrumentPan:+$('#instPan').value,
-   instrumentLowEQ:+$('#instLow').value,
-   instrumentHighEQ:+$('#instHigh').value,
-   vocalVolume:+$('#vocVol').value,
-   vocalPan:+$('#vocPan').value,
-   masterVolume:+$('#masterVol').value,
-   compression:+$('#comp').value,
-   limiterCeiling:+$('#limiter').value
+   instrumentVolume:+q('#instVol').value,
+   instrumentPan:+q('#instPan').value,
+   instrumentLowEQ:+q('#instLow').value,
+   instrumentHighEQ:+q('#instHigh').value,
+   vocalVolume:+q('#vocVol').value,
+   vocalPan:+q('#vocPan').value,
+   masterVolume:+q('#masterVol').value,
+   compression:+q('#comp').value,
+   limiterCeiling:+q('#limiter').value
  });
 }
-async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();$('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus')&&($('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){$('#audioStatus')&&($('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
-function syncMixer(){if(!ctx)return;master.gain.value=+$('#masterVol').value;instBus.gain.value=+$('#instVol').value;vocBus.gain.value=+$('#vocVol').value;delayWet.gain.value=+$('#delay').value;reverbWet.gain.value=+$('#reverb').value;compressor.threshold.value=-10-(+$('#comp').value*30);compressor.ratio.value=1.5+(+$('#comp').value*8)}
-$('#audioBtn').onclick=async()=>{
+async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();q('#audioBtn').textContent='Audio Ready';q('#audioBtn').classList.add('on');q('#audioStatus')&&(q('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){q('#audioStatus')&&(q('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
+function syncMixer(){if(!ctx)return;master.gain.value=+q('#masterVol').value;instBus.gain.value=+q('#instVol').value;vocBus.gain.value=+q('#vocVol').value;delayWet.gain.value=+q('#delay').value;reverbWet.gain.value=+q('#reverb').value;compressor.threshold.value=-10-(+q('#comp').value*30);compressor.ratio.value=1.5+(+q('#comp').value*8)}
+q('#audioBtn').onclick=async()=>{
  if(nativeTone(660,'sine',.16,.15)){
-   $('#audioBtn').textContent='iOS Audio Ready';$('#audioBtn').classList.add('on');
-   $('#audioStatus')&&($('#audioStatus').textContent='Native iOS audio engine running.');
+   q('#audioBtn').textContent='iOS Audio Ready';q('#audioBtn').classList.add('on');
+   q('#audioStatus')&&(q('#audioStatus').textContent='Native iOS audio engine running.');
    return;
  }
  const c=await audio();if(!c)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=660;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.15,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.16)
 };
 function tone(freq,dur=.45,type='sine',gain=.16,out=instBus,filterHz=12000){if(nativeTone(freq,type,dur,gain))return;const c=ctx;if(!c||c.state!=='running')return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter();o.type=type;o.frequency.setValueAtTime(freq,t);f.type='lowpass';f.frequency.value=filterHz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(f).connect(g).connect(out);o.start(t);o.stop(t+dur+.05)}
 function drum(name){const c=ctx;if(!c)return;const t=c.currentTime;if(name==='hat'||name==='crash'){const len=c.sampleRate*(name==='crash'?.5:.08),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type='highpass';f.frequency.value=name==='crash'?3500:6500;g.gain.setValueAtTime(name==='crash'?.12:.08,t);g.gain.exponentialRampToValueAtTime(.001,t+(name==='crash'?.5:.08));s.connect(f).connect(g).connect(instBus);s.start();return}const map={kick:[130,48,.22,'sine'],snare:[190,190,.11,'triangle'],clap:[1100,900,.09,'square'],tom:[120,80,.25,'sine'],rim:[700,700,.06,'square'],perc:[420,300,.12,'triangle']},m=map[name]||map.kick,o=c.createOscillator(),g=c.createGain();o.type=m[3];o.frequency.setValueAtTime(m[0],t);o.frequency.exponentialRampToValueAtTime(m[1],t+m[2]);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+m[2]);o.connect(g).connect(instBus);o.start();o.stop(t+m[2]+.04)}
-$('.pad').forEach(p=>p.onclick=async()=>{if(nativeDrum(p.dataset.drum))return;if(await audio())drum(p.dataset.drum)});
+q('.pad').forEach(p=>p.onclick=async()=>{if(nativeDrum(p.dataset.drum))return;if(await audio())drum(p.dataset.drum)});
 const notes=[261.63,293.66,329.63,349.23,392,440,493.88],names=['C','D','E','F','G','A','B'];
-function buildKeys(id,fn){const g=$(id);g.innerHTML='';notes.forEach((f,i)=>{const b=document.createElement('button');b.className='key';b.textContent=names[i];b.onclick=async()=>{if(await audio())fn(f)};g.appendChild(b)})}
-buildKeys('#keysGrid',f=>tone(f,.65,$('#keyType').value,.13));
-buildKeys('#synthGrid',f=>tone(f,+$('#release').value,$('#oscType').value,.13,instBus,+$('#cutoff').value));
-const bass=[65.41,73.42,82.41,87.31,98,110,123.47,130.81];bass.forEach((f,i)=>{const b=document.createElement('button');b.textContent=names[i%7]+' Bass';b.onclick=async()=>{if(!(await audio()))return;const p=$('#bassType').value;const type=p==='reese'?'sawtooth':'sine';tone(f,+$('#bassRelease').value,type,p==='808'?.28:.18)};$('#bassGrid').appendChild(b)});
+function buildKeys(id,fn){const g=q(id);g.innerHTML='';notes.forEach((f,i)=>{const b=document.createElement('button');b.className='key';b.textContent=names[i];b.onclick=async()=>{if(await audio())fn(f)};g.appendChild(b)})}
+buildKeys('#keysGrid',f=>tone(f,.65,q('#keyType').value,.13));
+buildKeys('#synthGrid',f=>tone(f,+q('#release').value,q('#oscType').value,.13,instBus,+q('#cutoff').value));
+const bass=[65.41,73.42,82.41,87.31,98,110,123.47,130.81];bass.forEach((f,i)=>{const b=document.createElement('button');b.textContent=names[i%7]+' Bass';b.onclick=async()=>{if(!(await audio()))return;const p=q('#bassType').value;const type=p==='reese'?'sawtooth':'sine';tone(f,+q('#bassRelease').value,type,p==='808'?.28:.18)};q('#bassGrid').appendChild(b)});
 function loadDeck(deck,file){
- const a=$('#deck'+deck+'Audio'); if(a.src)URL.revokeObjectURL(a.src); a.src=URL.createObjectURL(file); a.load();
- $('#deck'+deck+'Play').textContent='▶';
+ nativeDecks[deck]=null;nativeDeckPlaying[deck]=false;
+ const a=q('#deck'+deck+'Audio'); if(a.src)URL.revokeObjectURL(a.src); a.src=URL.createObjectURL(file); a.load();
+ q('#deck'+deck+'Name').textContent=file.name+' · Browser';
+ q('#deck'+deck+'Play').textContent='▶';
+ scheduleRecovery();
 }
+window.royceNativeDeckImported=function(deck,item){
+ deck=(deck||'A').toUpperCase();
+ nativeDecks[deck]=item||null;
+ nativeDeckPlaying[deck]=false;
+ const name=q('#deck'+deck+'Name');
+ if(name)name.textContent=(item?.name||'Imported Audio')+' · Native iOS';
+ const play=q('#deck'+deck+'Play');if(play)play.textContent='▶';
+ if(nativeAudioAvailable()){
+   window.royceNativeAudio.deckPitch?.(deck,+q('#deck'+deck+'Pitch').value);
+   window.royceNativeAudio.deckFilter?.(deck,+q('#deck'+deck+'Filter').value);
+   window.royceNativeAudio.deckCrossfader?.(+q('#crossfader').value);
+ }
+ scheduleRecovery();
+};
+window.royceNativeDeckImportCancelled=function(){};
+q('#nativeDeckAImport').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.importDeck)window.royceNativeAudio.importDeck('A');
+ else q('#deckAName').textContent='Native Files import requires the iOS app.';
+};
+q('#nativeDeckBImport').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.importDeck)window.royceNativeAudio.importDeck('B');
+ else q('#deckBName').textContent='Native Files import requires the iOS app.';
+};
+
 function deckStart(deck){
- const a=$('#deck'+deck+'Audio');
- if(a&&a.src){
-   if(a.paused){a.play();$('#deck'+deck+'Play').textContent='■'}else{a.pause();$('#deck'+deck+'Play').textContent='▶'}
+ if(nativeDecks[deck]&&nativeAudioAvailable()&&window.royceNativeAudio.deckToggle){
+   window.royceNativeAudio.deckToggle(deck);
+   nativeDeckPlaying[deck]=!nativeDeckPlaying[deck];
+   q('#deck'+deck+'Play').textContent=nativeDeckPlaying[deck]?'■':'▶';
    return;
  }
- if(deckTimers[deck]){clearInterval(deckTimers[deck]);deckTimers[deck]=null;$('#deck'+deck+'Play').textContent='▶';return}
- audio().then(c=>{if(!c)return;let step=0;deckTimers[deck]=setInterval(()=>{const filt=+$('#deck'+deck+'Filter').value;const pitch=+$('#deck'+deck+'Pitch').value;const base=deck==='A'?110:146.83;tone(base*Math.pow(2,pitch/12)*(step%4===0?1:.5),.12,deck==='A'?'square':'sawtooth',.08,instBus,filt);step++},250);$('#deck'+deck+'Play').textContent='■'})
+ const a=q('#deck'+deck+'Audio');
+ if(a&&a.src){
+   if(a.paused){a.play();q('#deck'+deck+'Play').textContent='■'}else{a.pause();q('#deck'+deck+'Play').textContent='▶'}
+   return;
+ }
+ if(deckTimers[deck]){clearInterval(deckTimers[deck]);deckTimers[deck]=null;q('#deck'+deck+'Play').textContent='▶';return}
+ audio().then(c=>{if(!c)return;let step=0;deckTimers[deck]=setInterval(()=>{const filt=+q('#deck'+deck+'Filter').value;const pitch=+q('#deck'+deck+'Pitch').value;const base=deck==='A'?110:146.83;tone(base*Math.pow(2,pitch/12)*(step%4===0?1:.5),.12,deck==='A'?'square':'sawtooth',.08,instBus,filt);step++},250);q('#deck'+deck+'Play').textContent='■'})
 }
-$('#deckAFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('A',f)};
-$('#deckBFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('B',f)};
-$('#deckAPlay').onclick=()=>deckStart('A');$('#deckBPlay').onclick=()=>deckStart('B');
-$('#deckACue').onclick=()=>{const a=$('#deckAAudio');if(a.src){a.currentTime=0}else tone(660,.08,'square',.08)};
-$('#deckBCue').onclick=()=>{const a=$('#deckBAudio');if(a.src){a.currentTime=0}else tone(880,.08,'square',.08)};
-$('#deckASync').onclick=$('#deckBSync').onclick=()=>{$('#deckAPitch').value=0;$('#deckBPitch').value=0};
-['A','B'].forEach(d=>$('#deck'+d+'Pitch').oninput=e=>{const a=$('#deck'+d+'Audio');if(a.src)a.playbackRate=Math.max(.5,Math.min(1.5,Math.pow(2,(+e.target.value)/12)))});
-$('#crossfader').oninput=e=>{const x=+e.target.value,a=$('#deckAAudio'),b=$('#deckBAudio');a.volume=Math.min(1,(1-x)/2*1.6);b.volume=Math.min(1,(1+x)/2*1.6)};
+q('#deckAFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('A',f)};
+q('#deckBFile').onchange=e=>{const f=e.target.files?.[0];if(f)loadDeck('B',f)};
+q('#deckAPlay').onclick=()=>deckStart('A');q('#deckBPlay').onclick=()=>deckStart('B');
+q('#deckACue').onclick=()=>{if(nativeDecks.A&&nativeAudioAvailable()&&window.royceNativeAudio.deckCue){window.royceNativeAudio.deckCue('A');nativeDeckPlaying.A=false;q('#deckAPlay').textContent='▶';return}const a=q('#deckAAudio');if(a.src){a.currentTime=0}else tone(660,.08,'square',.08)};
+q('#deckBCue').onclick=()=>{if(nativeDecks.B&&nativeAudioAvailable()&&window.royceNativeAudio.deckCue){window.royceNativeAudio.deckCue('B');nativeDeckPlaying.B=false;q('#deckBPlay').textContent='▶';return}const a=q('#deckBAudio');if(a.src){a.currentTime=0}else tone(880,.08,'square',.08)};
+q('#deckASync').onclick=q('#deckBSync').onclick=()=>{q('#deckAPitch').value=0;q('#deckBPitch').value=0;if(nativeAudioAvailable()){window.royceNativeAudio.deckPitch?.('A',0);window.royceNativeAudio.deckPitch?.('B',0)}scheduleRecovery()};
+['A','B'].forEach(d=>{
+ q('#deck'+d+'Pitch').oninput=e=>{
+   const v=+e.target.value;
+   if(nativeDecks[d]&&nativeAudioAvailable()&&window.royceNativeAudio.deckPitch)window.royceNativeAudio.deckPitch(d,v);
+   else{const a=q('#deck'+d+'Audio');if(a.src)a.playbackRate=Math.max(.5,Math.min(1.5,Math.pow(2,v/12)))}
+   scheduleRecovery();
+ };
+ q('#deck'+d+'Filter').oninput=e=>{
+   if(nativeDecks[d]&&nativeAudioAvailable()&&window.royceNativeAudio.deckFilter)window.royceNativeAudio.deckFilter(d,+e.target.value);
+   scheduleRecovery();
+ };
+});
+q('#crossfader').oninput=e=>{
+ const x=+e.target.value,a=q('#deckAAudio'),b=q('#deckBAudio');
+ if(nativeAudioAvailable()&&window.royceNativeAudio.deckCrossfader)window.royceNativeAudio.deckCrossfader(x);
+ a.volume=Math.min(1,(1-x)/2*1.6);b.volume=Math.min(1,(1+x)/2*1.6);
+ scheduleRecovery();
+};
 
 function timelineBpm(){
- const n=Math.round(+($('#timelineBpm').value||120));
+ const n=Math.round(+(q('#timelineBpm').value||120));
  const v=Math.max(40,Math.min(220,Number.isFinite(n)?n:120));
- $('#timelineBpm').value=v;return v;
+ q('#timelineBpm').value=v;return v;
 }
 function stopTimeline(stopMaster=false){
  timelineTimers.forEach(clearTimeout);timelineTimers=[];
@@ -214,11 +263,11 @@ function stopTimeline(stopMaster=false){
    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);
    else if(t.audio){t.audio.pause();t.audio.currentTime=0}
  });
- $('#timelineRuler .bar').forEach(b=>b.classList.remove('playhead'));
- $('#timelineStatus').textContent='Stopped · Bar 1';
+ q('#timelineRuler .bar').forEach(b=>b.classList.remove('playhead'));
+ q('#timelineStatus').textContent='Stopped · Bar 1';
  if(stopMaster&&timelineRecording&&nativeAudioAvailable()&&window.royceNativeAudio.masterStop){
    window.royceNativeAudio.masterStop();timelineRecording=false;
-   $('#masterRecord').textContent='Start Master';$('#masterRecord').classList.remove('on');masterCapturing=false;
+   q('#masterRecord').textContent='Start Master';q('#masterRecord').classList.remove('on');masterCapturing=false;
  }
 }
 function startTimeline(record=false){
@@ -226,7 +275,7 @@ function startTimeline(record=false){
  const bpm=timelineBpm(),barMs=(240000/bpm),started=performance.now();
  if(record&&nativeAudioAvailable()&&window.royceNativeAudio.masterStart){
    window.royceNativeAudio.masterStart();timelineRecording=true;masterCapturing=true;
-   $('#masterRecord').textContent='Master Recording…';$('#masterRecord').classList.add('on');
+   q('#masterRecord').textContent='Master Recording…';q('#masterRecord').classList.add('on');
  }
  audioTracks.forEach(t=>{
    const delay=Math.max(0,(Math.max(1,+t.bar||1)-1)*barMs);
@@ -240,8 +289,8 @@ function startTimeline(record=false){
  });
  const update=()=>{
    const bar=Math.min(8,Math.floor((performance.now()-started)/barMs)+1);
-   $('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1));
-   $('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+' · '+bpm+' BPM';
+   q('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1));
+   q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+' · '+bpm+' BPM';
    if(bar>=8&&!audioTracks.some(t=>t.loop)){
      // Keep one extra bar for tails before stopping the UI clock.
      if(performance.now()-started>=barMs*8){if(timelineClock){clearInterval(timelineClock);timelineClock=null}}
@@ -249,19 +298,19 @@ function startTimeline(record=false){
  };
  update();timelineClock=setInterval(update,120);
 }
-$('#timelinePlay').onclick=()=>startTimeline(false);
-$('#timelineStop').onclick=()=>stopTimeline(true);
-$('#timelineRecord').onclick=()=>{
+q('#timelinePlay').onclick=()=>startTimeline(false);
+q('#timelineStop').onclick=()=>stopTimeline(true);
+q('#timelineRecord').onclick=()=>{
  if(!(nativeAudioAvailable()&&window.royceNativeAudio.masterStart)){
-   $('#timelineStatus').textContent='Record Arrangement requires the iOS app.';
+   q('#timelineStatus').textContent='Record Arrangement requires the iOS app.';
    return;
  }
  startTimeline(true);
 };
-$('#timelineBpm').onchange=timelineBpm;
+q('#timelineBpm').onchange=timelineBpm;
 
 function renderAudioTracks(){
- const host=$('#audioList');
+ const host=q('#audioList');
  if(!audioTracks.length){host.innerHTML='<p class="status">No imported tracks yet.</p>';return}
  host.innerHTML='';
  audioTracks.forEach((t,i)=>{
@@ -300,7 +349,7 @@ function renderAudioTracks(){
  });
 }
 function paintBars(){
- $$('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('on',audioTracks.some(t=>t.bar===i+1)));
+ qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('on',audioTracks.some(t=>t.bar===i+1)));
 }
 window.royceNativeMediaImported=function(items){
  for(const item of (items||[])){
@@ -310,11 +359,11 @@ window.royceNativeMediaImported=function(items){
  renderAudioTracks();paintBars();scheduleRecovery();
 };
 window.royceNativeMediaImportCancelled=function(){};
-$('#nativeImportMedia').onclick=()=>{
+q('#nativeImportMedia').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.importMedia)window.royceNativeAudio.importMedia();
- else $('#projectStatus').textContent='Native Files import is available in the iOS app.';
+ else q('#projectStatus').textContent='Native Files import is available in the iOS app.';
 };
-$('#importTracks').onchange=async e=>{
+q('#importTracks').onchange=async e=>{
  const files=[...(e.target.files||[])];
  for(const f of files){
    const id=rsMediaId();
@@ -324,45 +373,50 @@ $('#importTracks').onchange=async e=>{
  }
  renderAudioTracks();paintBars();scheduleRecovery();e.target.value='';
 };
-$('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);else{t.audio.pause();t.audio.currentTime=0}});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
+q('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);else{t.audio.pause();t.audio.currentTime=0}});['A','B'].forEach(d=>{if(nativeDecks[d]&&nativeAudioAvailable()&&window.royceNativeAudio.deckCue){window.royceNativeAudio.deckCue(d);nativeDeckPlaying[d]=false}const a=q('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0}q('#deck'+d+'Play').textContent='▶'})};
 
 function collectRoyceProject(){
  return {
-   version:'1.15-ios',
-   name:($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
+   version:'1.16-ios',
+   name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
    instruments:{
-     keyType:$('#keyType').value,
-     bassType:$('#bassType').value,
-     bassRelease:+$('#bassRelease').value,
-     oscType:$('#oscType').value,
-     cutoff:+$('#cutoff').value,
-     attack:+$('#attack').value,
-     release:+$('#release').value
+     keyType:q('#keyType').value,
+     bassType:q('#bassType').value,
+     bassRelease:+q('#bassRelease').value,
+     oscType:q('#oscType').value,
+     cutoff:+q('#cutoff').value,
+     attack:+q('#attack').value,
+     release:+q('#release').value
    },
    mixer:{
-     masterVol:+$('#masterVol').value,
-     instVol:+$('#instVol').value,
-     vocVol:+$('#vocVol').value,
-     instPan:+$('#instPan').value,
-     vocPan:+$('#vocPan').value,
-     instLow:+$('#instLow').value,
-     instHigh:+$('#instHigh').value,
-     vocLow:+$('#vocLow').value,
-     vocHigh:+$('#vocHigh').value,
-     delay:+$('#delay').value,
-     reverb:+$('#reverb').value,
-     comp:+$('#comp').value,
-     limiter:+$('#limiter').value
+     masterVol:+q('#masterVol').value,
+     instVol:+q('#instVol').value,
+     vocVol:+q('#vocVol').value,
+     instPan:+q('#instPan').value,
+     vocPan:+q('#vocPan').value,
+     instLow:+q('#instLow').value,
+     instHigh:+q('#instHigh').value,
+     vocLow:+q('#vocLow').value,
+     vocHigh:+q('#vocHigh').value,
+     delay:+q('#delay').value,
+     reverb:+q('#reverb').value,
+     comp:+q('#comp').value,
+     limiter:+q('#limiter').value
    },
    tune:{
-     enabled:$('#tuneToggle').classList.contains('on'),
-     key:$('#key').value,
-     scale:$('#scale').value,
-     strength:+$('#strength').value,
-     speed:+$('#speed').value,
-     humanize:+$('#human').value
+     enabled:q('#tuneToggle').classList.contains('on'),
+     key:q('#key').value,
+     scale:q('#scale').value,
+     strength:+q('#strength').value,
+     speed:+q('#speed').value,
+     humanize:+q('#human').value
+   },
+   dj:{
+     crossfader:+q('#crossfader').value,
+     A:nativeDecks.A?{id:nativeDecks.A.id,name:nativeDecks.A.name,native:true,pitch:+q('#deckAPitch').value,filter:+q('#deckAFilter').value}:null,
+     B:nativeDecks.B?{id:nativeDecks.B.id,name:nativeDecks.B.name,native:true,pitch:+q('#deckBPitch').value,filter:+q('#deckBFilter').value}:null
    },
    timeline:audioTracks.map(t=>({
      id:t.id||null,
@@ -403,33 +457,47 @@ async function restoreTimelineFromProject(items){
  return missing;
 }
 function applyValue(id,value){
- const el=$('#'+id);if(el&&value!==undefined&&value!==null)el.value=value;
+ const el=q('#'+id);if(el&&value!==undefined&&value!==null)el.value=value;
 }
 window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');applyValue('timelineBpm',p.bpm||120);
- const i=p.instruments||{},m=p.mixer||{},t=p.tune||{};
+ const i=p.instruments||{},m=p.mixer||{},t=p.tune||{},dj=p.dj||{};
+ applyValue('crossfader',dj.crossfader??0);
+ ['A','B'].forEach(deck=>{
+   const d=dj[deck];
+   if(d){
+     applyValue('deck'+deck+'Pitch',d.pitch??0);
+     applyValue('deck'+deck+'Filter',d.filter??12000);
+     nativeDecks[deck]={id:d.id,name:d.name};
+     q('#deck'+deck+'Name').textContent=(d.name||'Imported Audio')+' · Restoring…';
+     if(nativeAudioAvailable()&&window.royceNativeAudio.loadDeckMedia&&d.id){
+       window.royceNativeAudio.loadDeckMedia(deck,d.id);
+     }
+   }
+ });
+ if(nativeAudioAvailable()&&window.royceNativeAudio.deckCrossfader)window.royceNativeAudio.deckCrossfader(+q('#crossfader').value);
  applyValue('keyType',i.keyType);applyValue('bassType',i.bassType);applyValue('bassRelease',i.bassRelease);
  applyValue('oscType',i.oscType);applyValue('cutoff',i.cutoff);applyValue('attack',i.attack);applyValue('release',i.release);
  ['masterVol','instVol','vocVol','instPan','vocPan','instLow','instHigh','vocLow','vocHigh','delay','reverb','comp','limiter'].forEach(id=>applyValue(id,m[id]));
  applyValue('key',t.key);applyValue('scale',t.scale);applyValue('strength',t.strength);applyValue('speed',t.speed);applyValue('human',t.human);
- const tuneOn=!!t.enabled;$('#tuneToggle').classList.toggle('on',tuneOn);$('#tuneToggle').textContent=tuneOn?'On':'Off';
- $('#strengthVal').textContent=$('#strength').value+'%';$('#speedVal').textContent=$('#speed').value+' ms';$('#humanVal').textContent=$('#human').value+'%';
- $('#cutoffVal').textContent=$('#cutoff').value+' Hz';$('#attackVal').textContent=$('#attack').value+'s';$('#releaseVal').textContent=$('#release').value+'s';
- $('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';
+ const tuneOn=!!t.enabled;q('#tuneToggle').classList.toggle('on',tuneOn);q('#tuneToggle').textContent=tuneOn?'On':'Off';
+ q('#strengthVal').textContent=q('#strength').value+'%';q('#speedVal').textContent=q('#speed').value+' ms';q('#humanVal').textContent=q('#human').value+'%';
+ q('#cutoffVal').textContent=q('#cutoff').value+' Hz';q('#attackVal').textContent=q('#attack').value+'s';q('#releaseVal').textContent=q('#release').value+'s';
+ q('#delayVal').textContent=Math.round(+q('#delay').value*100)+'%';q('#reverbVal').textContent=Math.round(+q('#reverb').value*100)+'%';q('#compVal').textContent=Math.round(+q('#comp').value*100)+'%';
  syncMixer();pushNativeMixer();pushNativeVocalFX();pushNativeTune();
  const missing=await restoreTimelineFromProject(p.timeline||[]);
- $('#projectStatus').textContent='Project loaded: '+($('#projectName').value||'Royce Session')+(missing?' · '+missing+' media file(s) unavailable':'');
+ q('#projectStatus').textContent='Project loaded: '+(q('#projectName').value||'Royce Session')+(missing?' · '+missing+' media file(s) unavailable':'');
 
 };
 window.royceNativeProjectSaved=function(){
- $('#projectStatus').textContent='Project saved on iPhone.';
+ q('#projectStatus').textContent='Project saved on iPhone.';
  saveRecoverySnapshot();
  if(nativeAudioAvailable()&&window.royceNativeAudio.listProjects)window.royceNativeAudio.listProjects();
 };
-window.royceNativeProjectError=function(message){$('#projectStatus').textContent=message||'Project action failed.'};
+window.royceNativeProjectError=function(message){q('#projectStatus').textContent=message||'Project action failed.'};
 window.royceReceiveProjectList=function(names){
- const host=$('#nativeProjectList');host.innerHTML='';
+ const host=q('#nativeProjectList');host.innerHTML='';
  if(!names||!names.length){host.innerHTML='<p class="status">No native projects saved yet.</p>';return}
  names.forEach(name=>{
    const row=document.createElement('div');row.className='project-item';
@@ -462,29 +530,29 @@ function scheduleRecovery(){
 window.royceApplyRecovery=function(p){
  if(!p||typeof p!=='object')return;
  recoveryAvailable=p;
- $('#recoveryBox').style.display='block';
+ q('#recoveryBox').style.display='block';
  const when=p.recoverySavedAt||p.savedAt||'';
- $('#recoveryStatus').textContent=when?'Recovery available from '+new Date(when).toLocaleString()+'.':'A recoverable session is available.';
+ q('#recoveryStatus').textContent=when?'Recovery available from '+new Date(when).toLocaleString()+'.':'A recoverable session is available.';
 };
 window.royceNoRecovery=function(){
  recoveryAvailable=null;
- $('#recoveryBox').style.display='none';
+ q('#recoveryBox').style.display='none';
 };
-$('#restoreRecovery').onclick=async()=>{
+q('#restoreRecovery').onclick=async()=>{
  if(!recoveryAvailable)return;
  recoverySuspended=true;
  await window.royceApplyNativeProject(recoveryAvailable);
  recoverySuspended=false;
- $('#recoveryBox').style.display='none';
- $('#projectStatus').textContent='Recovery restored.';
+ q('#recoveryBox').style.display='none';
+ q('#projectStatus').textContent='Recovery restored.';
  scheduleRecovery();
 };
-$('#discardRecovery').onclick=()=>{
+q('#discardRecovery').onclick=()=>{
  recoveryAvailable=null;
- $('#recoveryBox').style.display='none';
+ q('#recoveryBox').style.display='none';
  if(nativeAudioAvailable()&&window.royceNativeAudio.clearRecovery)window.royceNativeAudio.clearRecovery();
  else localStorage.removeItem('royceStudioRecoveryV1');
- $('#projectStatus').textContent='Recovery discarded.';
+ q('#projectStatus').textContent='Recovery discarded.';
 };
 document.addEventListener('input',scheduleRecovery,{passive:true});
 document.addEventListener('change',scheduleRecovery,{passive:true});
@@ -502,63 +570,63 @@ setTimeout(()=>{
  }
 },700);
 
-$('#saveNativeProject').onclick=()=>{
+q('#saveNativeProject').onclick=()=>{
  const project=collectRoyceProject();
  if(nativeAudioAvailable()&&window.royceNativeAudio.saveProject){
    window.royceNativeAudio.saveProject(project.name,JSON.stringify(project));
  }else{
    localStorage.setItem('royceStudioV19Project',JSON.stringify(project));
-   $('#projectStatus').textContent='Saved locally in browser.';
+   q('#projectStatus').textContent='Saved locally in browser.';
  }
 };
-$('#loadLastNativeProject').onclick=()=>{
+q('#loadLastNativeProject').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.loadLastProject){
    window.royceNativeAudio.loadLastProject();
  }else{
    try{const p=JSON.parse(localStorage.getItem('royceStudioV19Project')||'null');if(p)window.royceApplyNativeProject(p)}catch(e){}
  }
 };
-$('#refreshNativeProjects').onclick=()=>{
+q('#refreshNativeProjects').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.listProjects)window.royceNativeAudio.listProjects();
- else $('#projectStatus').textContent='Native project browser is available in the iOS app.';
+ else q('#projectStatus').textContent='Native project browser is available in the iOS app.';
 };
-$('#shareCurrentProject').onclick=()=>{
- const name=($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session';
+q('#shareCurrentProject').onclick=()=>{
+ const name=(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session';
  if(nativeAudioAvailable()&&window.royceNativeAudio.shareProject){
    const project=collectRoyceProject();
    window.royceNativeAudio.saveProject(name,JSON.stringify(project));
    setTimeout(()=>window.royceNativeAudio.shareProject(name),180);
- }else $('#projectStatus').textContent='Project sharing is available in the iOS app.';
+ }else q('#projectStatus').textContent='Project sharing is available in the iOS app.';
 };
-$('.tab').forEach(t=>t.onclick=()=>{$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
-['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();pushNativeMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
-['instPan','instLow','instHigh','vocPan','vocLow','vocHigh','limiter'].forEach(id=>$('#'+id).oninput=()=>{pushNativeMixer();if(id==='vocLow'||id==='vocHigh')pushNativeVocalFX()});
-$('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
-$('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
-$('#micBtn').onclick=async()=>{
+q('.tab').forEach(t=>t.onclick=()=>{q('.tab').forEach(x=>x.classList.remove('active'));q('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');q('#'+t.dataset.tab).classList.add('active')});
+['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>q('#'+id).oninput=()=>{syncMixer();pushNativeMixer();if(id==='delay')q('#delayVal').textContent=Math.round(+q('#delay').value*100)+'%';if(id==='reverb')q('#reverbVal').textContent=Math.round(+q('#reverb').value*100)+'%';if(id==='comp')q('#compVal').textContent=Math.round(+q('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
+['instPan','instLow','instHigh','vocPan','vocLow','vocHigh','limiter'].forEach(id=>q('#'+id).oninput=()=>{pushNativeMixer();if(id==='vocLow'||id==='vocHigh')pushNativeVocalFX()});
+q('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+q('#masterVol').value;q('#masterMute').classList.toggle('on',master.gain.value===0)};
+q('#cutoff').oninput=e=>q('#cutoffVal').textContent=e.target.value+' Hz';q('#attack').oninput=e=>q('#attackVal').textContent=e.target.value+'s';q('#release').oninput=e=>q('#releaseVal').textContent=e.target.value+'s';
+q('#micBtn').onclick=async()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.prepareMic){
    window.royceNativeAudio.prepareMic();
-   $('#micStatus').textContent='Native iOS microphone armed.';
-   $('#recBtn').disabled=false;
-   $('#micBtn').classList.add('on');
-   $('#nativeTakePlay').style.display='block';
-   $('#nativeTakeShare').style.display='block';
+   q('#micStatus').textContent='Native iOS microphone armed.';
+   q('#recBtn').disabled=false;
+   q('#micBtn').classList.add('on');
+   q('#nativeTakePlay').style.display='block';
+   q('#nativeTakeShare').style.display='block';
    return;
  }
- try{stream=await navigator.mediaDevices.getUserMedia({audio:true});$('#micStatus').textContent='Microphone ready.';$('#recBtn').disabled=false;$('#micBtn').classList.add('on')}catch(e){$('#micStatus').textContent='Mic permission failed: '+(e.message||e)}
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:true});q('#micStatus').textContent='Microphone ready.';q('#recBtn').disabled=false;q('#micBtn').classList.add('on')}catch(e){q('#micStatus').textContent='Mic permission failed: '+(e.message||e)}
 };
 let nativeRecording=false;
-$('#recBtn').onclick=()=>{
+q('#recBtn').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.recordStart){
    nativeRecording=!nativeRecording;
    if(nativeRecording){
      window.royceNativeAudio.recordStart();
-     $('#recBtn').textContent='Stop Recording';
-     $('#micStatus').textContent='Recording natively on iPhone…';
+     q('#recBtn').textContent='Stop Recording';
+     q('#micStatus').textContent='Recording natively on iPhone…';
    }else{
      window.royceNativeAudio.recordStop();
-     $('#recBtn').textContent='Start Recording';
-     $('#micStatus').textContent='Native take recorded.';
+     q('#recBtn').textContent='Start Recording';
+     q('#micStatus').textContent='Native take recorded.';
    }
    return;
  }
@@ -566,93 +634,93 @@ $('#recBtn').onclick=()=>{
  if(!recorder||recorder.state==='inactive'){
    chunks=[];recorder=new MediaRecorder(stream);
    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-   recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});$('#player').src=URL.createObjectURL(b);$('#micStatus').textContent='Take recorded.'};
-   recorder.start();$('#recBtn').textContent='Stop Recording';$('#micStatus').textContent='Recording…'
- }else{recorder.stop();$('#recBtn').textContent='Start Recording'}
+   recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});q('#player').src=URL.createObjectURL(b);q('#micStatus').textContent='Take recorded.'};
+   recorder.start();q('#recBtn').textContent='Stop Recording';q('#micStatus').textContent='Recording…'
+ }else{recorder.stop();q('#recBtn').textContent='Start Recording'}
 };
-$('#nativeTakePlay').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAudio.playLastTake)window.royceNativeAudio.playLastTake()};
-$('#nativeTakeShare').onclick=()=>{
+q('#nativeTakePlay').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAudio.playLastTake)window.royceNativeAudio.playLastTake()};
+q('#nativeTakeShare').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.shareLastTake){
    window.royceNativeAudio.shareLastTake();
  }else{
-   $('#micStatus').textContent='Native export is available in the iOS app.';
+   q('#micStatus').textContent='Native export is available in the iOS app.';
  }
 };
 
 let masterCapturing=false;
-$('#masterRecord').onclick=()=>{
+q('#masterRecord').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.masterStart){
-   $('#masterStatus').textContent='Native Master Capture requires the iOS app.';
+   q('#masterStatus').textContent='Native Master Capture requires the iOS app.';
    return;
  }
  if(masterCapturing)return;
  window.royceNativeAudio.masterStart();
  masterCapturing=true;
- $('#masterRecord').textContent='Master Recording…';
- $('#masterRecord').classList.add('on');
- $('#masterStatus').textContent='Capturing native studio output.';
+ q('#masterRecord').textContent='Master Recording…';
+ q('#masterRecord').classList.add('on');
+ q('#masterStatus').textContent='Capturing native studio output.';
 };
-$('#masterStop').onclick=()=>{
+q('#masterStop').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.masterStop)window.royceNativeAudio.masterStop();
  masterCapturing=false;
- $('#masterRecord').textContent='Start Master';
- $('#masterRecord').classList.remove('on');
- $('#masterStatus').textContent='Master capture stopped.';
+ q('#masterRecord').textContent='Start Master';
+ q('#masterRecord').classList.remove('on');
+ q('#masterStatus').textContent='Master capture stopped.';
 };
-$('#masterPlay').onclick=()=>{
+q('#masterPlay').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.masterPlay){
    window.royceNativeAudio.masterPlay();
-   $('#masterStatus').textContent='Playing last master.';
- }else $('#masterStatus').textContent='Native master playback requires the iOS app.';
+   q('#masterStatus').textContent='Playing last master.';
+ }else q('#masterStatus').textContent='Native master playback requires the iOS app.';
 };
-$('#masterShare').onclick=()=>{
+q('#masterShare').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.masterShare){
    window.royceNativeAudio.masterShare();
- }else $('#masterStatus').textContent='Native master sharing requires the iOS app.';
+ }else q('#masterStatus').textContent='Native master sharing requires the iOS app.';
 };
 
 let nativeMonitoring=false;
-$('#nativeMonitorBtn').onclick=()=>{
+q('#nativeMonitorBtn').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.monitor){
-   $('#nativeMonitorStatus').textContent='Open Royce Studio in the native iOS app for native monitoring.';
+   q('#nativeMonitorStatus').textContent='Open Royce Studio in the native iOS app for native monitoring.';
    return;
  }
  nativeMonitoring=!nativeMonitoring;
  pushNativeVocalFX();
  window.royceNativeAudio.monitor(nativeMonitoring);
- $('#nativeMonitorBtn').textContent=nativeMonitoring?'Native Monitor On':'Native Monitor Off';
- $('#nativeMonitorBtn').classList.toggle('on',nativeMonitoring);
- $('#nativeMonitorStatus').textContent=nativeMonitoring?'Native vocal monitoring active — headphones recommended.':'Native monitoring off.';
+ q('#nativeMonitorBtn').textContent=nativeMonitoring?'Native Monitor On':'Native Monitor Off';
+ q('#nativeMonitorBtn').classList.toggle('on',nativeMonitoring);
+ q('#nativeMonitorStatus').textContent=nativeMonitoring?'Native vocal monitoring active — headphones recommended.':'Native monitoring off.';
 };
-$('#nativeMonitorLevel').oninput=pushNativeVocalFX;
-['vocLow','vocHigh'].forEach(id=>$('#'+id).oninput=()=>pushNativeVocalFX());
+q('#nativeMonitorLevel').oninput=pushNativeVocalFX;
+['vocLow','vocHigh'].forEach(id=>q('#'+id).oninput=()=>pushNativeVocalFX());
 
 function pushNativeTune(){
- const on=$('#tuneToggle').classList.contains('on');
+ const on=q('#tuneToggle').classList.contains('on');
  if(nativeAudioAvailable()&&window.royceNativeAudio.autoTune){
    window.royceNativeAudio.autoTune(
      on,
-     $('#key').value,
-     $('#scale').value,
-     +$('#strength').value/100,
-     +$('#speed').value,
-     +$('#human').value/100
+     q('#key').value,
+     q('#scale').value,
+     +q('#strength').value/100,
+     +q('#speed').value,
+     +q('#human').value/100
    );
  }
 }
-$('#tuneToggle').onclick=()=>{
- const on=!$('#tuneToggle').classList.contains('on');
- $('#tuneToggle').classList.toggle('on',on);
- $('#tuneToggle').textContent=on?'On':'Off';
- $('#tuneStatus').textContent=on
+q('#tuneToggle').onclick=()=>{
+ const on=!q('#tuneToggle').classList.contains('on');
+ q('#tuneToggle').classList.toggle('on',on);
+ q('#tuneToggle').textContent=on?'On':'Off';
+ q('#tuneStatus').textContent=on
    ?(nativeAudioAvailable()?'Native Auto‑Tune active.':'Auto‑Tune controls armed; native correction requires the iOS app.')
    :'Auto‑Tune is off.';
  pushNativeTune();
 };
-$('#strength').oninput=e=>{$('#strengthVal').textContent=e.target.value+'%';pushNativeTune()};
-$('#speed').oninput=e=>{$('#speedVal').textContent=e.target.value+' ms';pushNativeTune()};
-$('#human').oninput=e=>{$('#humanVal').textContent=e.target.value+'%';pushNativeTune()};
-$('#key').onchange=pushNativeTune;$('#scale').onchange=pushNativeTune;
+q('#strength').oninput=e=>{q('#strengthVal').textContent=e.target.value+'%';pushNativeTune()};
+q('#speed').oninput=e=>{q('#speedVal').textContent=e.target.value+' ms';pushNativeTune()};
+q('#human').oninput=e=>{q('#humanVal').textContent=e.target.value+'%';pushNativeTune()};
+q('#key').onchange=pushNativeTune;q('#scale').onchange=pushNativeTune;
 </script>
 </body>
 </html>
