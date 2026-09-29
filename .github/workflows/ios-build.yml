@@ -1,0 +1,27 @@
+name: iOS Build
+
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build for iPhone Simulator
+        working-directory: ios
+        run: |
+          xcodebuild             -project RoyceStudio.xcodeproj             -scheme RoyceStudio             -sdk iphonesimulator             -configuration Debug             CODE_SIGNING_ALLOWED=NO             build
