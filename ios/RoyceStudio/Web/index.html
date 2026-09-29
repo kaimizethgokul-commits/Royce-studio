@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.13 iOS</title>
+<title>Royce Studio v1.14 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.13 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.14 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -142,6 +142,20 @@ function pushNativeVocalFX(){
    +$('#reverb').value,
    +$('#delay').value
  );
+}
+function pushNativeMixer(){
+ if(!nativeAudioAvailable()||!window.royceNativeAudio.mixer)return;
+ window.royceNativeAudio.mixer({
+   instrumentVolume:+$('#instVol').value,
+   instrumentPan:+$('#instPan').value,
+   instrumentLowEQ:+$('#instLow').value,
+   instrumentHighEQ:+$('#instHigh').value,
+   vocalVolume:+$('#vocVol').value,
+   vocalPan:+$('#vocPan').value,
+   masterVolume:+$('#masterVol').value,
+   compression:+$('#comp').value,
+   limiterCeiling:+$('#limiter').value
+ });
 }
 async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();$('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus')&&($('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){$('#audioStatus')&&($('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
 function syncMixer(){if(!ctx)return;master.gain.value=+$('#masterVol').value;instBus.gain.value=+$('#instVol').value;vocBus.gain.value=+$('#vocVol').value;delayWet.gain.value=+$('#delay').value;reverbWet.gain.value=+$('#reverb').value;compressor.threshold.value=-10-(+$('#comp').value*30);compressor.ratio.value=1.5+(+$('#comp').value*8)}
@@ -398,7 +412,7 @@ window.royceApplyNativeProject=async function(p){
  $('#strengthVal').textContent=$('#strength').value+'%';$('#speedVal').textContent=$('#speed').value+' ms';$('#humanVal').textContent=$('#human').value+'%';
  $('#cutoffVal').textContent=$('#cutoff').value+' Hz';$('#attackVal').textContent=$('#attack').value+'s';$('#releaseVal').textContent=$('#release').value+'s';
  $('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';
- syncMixer();pushNativeVocalFX();pushNativeTune();
+ syncMixer();pushNativeMixer();pushNativeVocalFX();pushNativeTune();
  const missing=await restoreTimelineFromProject(p.timeline||[]);
  $('#projectStatus').textContent='Project loaded: '+($('#projectName').value||'Royce Session')+(missing?' · '+missing+' media file(s) unavailable':'');
 
@@ -448,7 +462,8 @@ $('#shareCurrentProject').onclick=()=>{
  }else $('#projectStatus').textContent='Project sharing is available in the iOS app.';
 };
 $('.tab').forEach(t=>t.onclick=()=>{$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
-['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
+['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();pushNativeMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
+['instPan','instLow','instHigh','vocPan','vocLow','vocHigh','limiter'].forEach(id=>$('#'+id).oninput=()=>{pushNativeMixer();if(id==='vocLow'||id==='vocHigh')pushNativeVocalFX()});
 $('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
 $('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
 $('#micBtn').onclick=async()=>{
