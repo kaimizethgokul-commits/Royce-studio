@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.5 iOS</title>
+<title>Royce Studio v1.6 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -36,7 +36,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.5 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.6 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -72,6 +72,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 
 <section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p>
 <div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div>
+<div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><span></span></div>
 <div class="grid2" style="margin-top:10px"><button id="nativeMonitorBtn">Native Monitor Off</button><div class="row"><label>Monitor level</label><input id="nativeMonitorLevel" type="range" min="0" max="1" step="0.01" value="0.85"></div></div>
 <p class="status" id="nativeMonitorStatus">Native monitoring is available in the iOS app. Use headphones to avoid feedback.</p>
 <audio id="player" controls style="width:100%;margin-top:12px"></audio></div></section>
@@ -165,8 +166,41 @@ $$('.tab').forEach(t=>t.onclick=()=>{$('.tab').forEach(x=>x.classList.remove('ac
 ['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
 $('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
 $('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
-$('#micBtn').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({audio:true});$('#micStatus').textContent='Microphone ready.';$('#recBtn').disabled=false;$('#micBtn').classList.add('on')}catch(e){$('#micStatus').textContent='Mic permission failed: '+(e.message||e)}};
-$('#recBtn').onclick=()=>{if(!stream)return;if(!recorder||recorder.state==='inactive'){chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});$('#player').src=URL.createObjectURL(b);$('#micStatus').textContent='Take recorded.'};recorder.start();$('#recBtn').textContent='Stop Recording';$('#micStatus').textContent='Recording…'}else{recorder.stop();$('#recBtn').textContent='Start Recording'}};
+$('#micBtn').onclick=async()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.prepareMic){
+   window.royceNativeAudio.prepareMic();
+   $('#micStatus').textContent='Native iOS microphone armed.';
+   $('#recBtn').disabled=false;
+   $('#micBtn').classList.add('on');
+   $('#nativeTakePlay').style.display='block';
+   return;
+ }
+ try{stream=await navigator.mediaDevices.getUserMedia({audio:true});$('#micStatus').textContent='Microphone ready.';$('#recBtn').disabled=false;$('#micBtn').classList.add('on')}catch(e){$('#micStatus').textContent='Mic permission failed: '+(e.message||e)}
+};
+let nativeRecording=false;
+$('#recBtn').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.recordStart){
+   nativeRecording=!nativeRecording;
+   if(nativeRecording){
+     window.royceNativeAudio.recordStart();
+     $('#recBtn').textContent='Stop Recording';
+     $('#micStatus').textContent='Recording natively on iPhone…';
+   }else{
+     window.royceNativeAudio.recordStop();
+     $('#recBtn').textContent='Start Recording';
+     $('#micStatus').textContent='Native take recorded.';
+   }
+   return;
+ }
+ if(!stream)return;
+ if(!recorder||recorder.state==='inactive'){
+   chunks=[];recorder=new MediaRecorder(stream);
+   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+   recorder.onstop=()=>{const b=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});$('#player').src=URL.createObjectURL(b);$('#micStatus').textContent='Take recorded.'};
+   recorder.start();$('#recBtn').textContent='Stop Recording';$('#micStatus').textContent='Recording…'
+ }else{recorder.stop();$('#recBtn').textContent='Start Recording'}
+};
+$('#nativeTakePlay').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAudio.playLastTake)window.royceNativeAudio.playLastTake()};
 let nativeMonitoring=false;
 $('#nativeMonitorBtn').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.monitor){
