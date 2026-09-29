@@ -16,6 +16,10 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Royce Studio uses the microphone to record vocals and audio.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
     <key>UIRequiresFullScreen</key>
     <true/>
     <key>UISupportedInterfaceOrientations</key>
