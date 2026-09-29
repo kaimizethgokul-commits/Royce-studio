@@ -9,6 +9,10 @@ final class NativeAudioEngine {
     private var mediaPlayers: [String: AVAudioPlayerNode] = [:]
     private var mediaFiles: [String: AVAudioFile] = [:]
     private var mediaLoop: [String: Bool] = [:]
+    private let instrumentMixer = AVAudioMixerNode()
+    private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
+    private let instrumentCompressor = AVAudioUnitDynamicsProcessor()
+    private var instrumentGraphConnected = false
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
     private let vocalPitch = AVAudioUnitTimePitch()
     private let vocalReverb = AVAudioUnitReverb()
@@ -16,6 +20,8 @@ final class NativeAudioEngine {
     private let vocalMixer = AVAudioMixerNode()
     private var vocalGraphConnected = false
     private var monitoringEnabled = false
+    private var vocalFader: Float = 0.85
+    private var monitorLevel: Float = 0.85
     private var recordingFile: AVAudioFile?
     private var lastRecordingURL: URL?
     private var isRecording = false
@@ -40,6 +46,22 @@ final class NativeAudioEngine {
     }
 
     private init() {
+        instrumentEQ.bands[0].filterType = .lowShelf
+        instrumentEQ.bands[0].frequency = 180
+        instrumentEQ.bands[0].gain = 0
+        instrumentEQ.bands[0].bypass = false
+
+        instrumentEQ.bands[1].filterType = .highShelf
+        instrumentEQ.bands[1].frequency = 6_500
+        instrumentEQ.bands[1].gain = 0
+        instrumentEQ.bands[1].bypass = false
+
+        instrumentCompressor.threshold = -18
+        instrumentCompressor.headRoom = 5
+        instrumentCompressor.compressionRatio = 3
+        instrumentCompressor.attackTime = 0.01
+        instrumentCompressor.releaseTime = 0.12
+
         vocalEQ.bands[0].filterType = .lowShelf
         vocalEQ.bands[0].frequency = 180
         vocalEQ.bands[0].gain = 0
@@ -62,17 +84,70 @@ final class NativeAudioEngine {
         vocalDelay.wetDryMix = 10
 
         vocalMixer.outputVolume = 0
+        connectInstrumentGraphIfNeeded()
         startIfNeeded()
     }
 
     func startIfNeeded() {
         AudioSessionManager.shared.configure()
+        connectInstrumentGraphIfNeeded()
         guard !engine.isRunning else { return }
         do {
             try engine.start()
         } catch {
             print("Royce native audio engine failed to start: \(error)")
         }
+    }
+
+    func setMixer(
+        instrumentVolume: Float,
+        instrumentPan: Float,
+        instrumentLowEQ: Float,
+        instrumentHighEQ: Float,
+        vocalVolume: Float,
+        vocalPan: Float,
+        masterVolume: Float,
+        compression: Float,
+        limiterCeiling: Float
+    ) {
+        connectInstrumentGraphIfNeeded()
+
+        instrumentMixer.outputVolume = min(max(instrumentVolume, 0), 1)
+        instrumentMixer.pan = min(max(instrumentPan, -1), 1)
+        instrumentEQ.bands[0].gain = min(max(instrumentLowEQ, -12), 12)
+        instrumentEQ.bands[1].gain = min(max(instrumentHighEQ, -12), 12)
+
+        let amount = min(max(compression, 0), 1)
+        instrumentCompressor.threshold = -10 - (amount * 30)
+        instrumentCompressor.compressionRatio = 1.5 + (amount * 8.5)
+        instrumentCompressor.attackTime = 0.008
+        instrumentCompressor.releaseTime = 0.12
+
+        vocalFader = min(max(vocalVolume, 0), 1)
+        vocalMixer.pan = min(max(vocalPan, -1), 1)
+        if monitoringEnabled {
+            vocalMixer.outputVolume = vocalFader * monitorLevel
+        }
+
+        let ceilingGain = pow(10.0, min(max(limiterCeiling, -6), 0) / 20.0)
+        engine.mainMixerNode.outputVolume = min(
+            max(masterVolume, 0),
+            ceilingGain
+        )
+    }
+
+    private func connectInstrumentGraphIfNeeded() {
+        guard !instrumentGraphConnected else { return }
+
+        engine.attach(instrumentMixer)
+        engine.attach(instrumentEQ)
+        engine.attach(instrumentCompressor)
+
+        engine.connect(instrumentMixer, to: instrumentEQ, format: nil)
+        engine.connect(instrumentEQ, to: instrumentCompressor, format: nil)
+        engine.connect(instrumentCompressor, to: engine.mainMixerNode, format: nil)
+
+        instrumentGraphConnected = true
     }
 
     func toggleMedia(
@@ -102,7 +177,7 @@ final class NativeAudioEngine {
         engine.attach(player)
         engine.connect(
             player,
-            to: engine.mainMixerNode,
+            to: instrumentMixer,
             format: file.processingFormat
         )
 
@@ -484,7 +559,7 @@ final class NativeAudioEngine {
             DispatchQueue.main.async {
                 self.connectVocalGraphIfNeeded()
                 self.monitoringEnabled = enabled
-                self.vocalMixer.outputVolume = enabled ? max(self.vocalMixer.outputVolume, 0.85) : 0
+                self.vocalMixer.outputVolume = enabled ? self.vocalFader * self.monitorLevel : 0
                 self.startIfNeeded()
             }
         }
@@ -498,6 +573,7 @@ final class NativeAudioEngine {
         delay: Float
     ) {
         let safeVolume = min(max(volume, 0), 1)
+        monitorLevel = safeVolume
         let safeLow = min(max(lowEQ, -12), 12)
         let safeHigh = min(max(highEQ, -12), 12)
         let safeReverb = min(max(reverb, 0), 1)
@@ -509,7 +585,7 @@ final class NativeAudioEngine {
         vocalDelay.wetDryMix = safeDelay * 100
 
         if monitoringEnabled {
-            vocalMixer.outputVolume = safeVolume
+            vocalMixer.outputVolume = vocalFader * monitorLevel
         }
     }
 
@@ -658,7 +734,7 @@ final class NativeAudioEngine {
 
         let player = AVAudioPlayerNode()
         engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: format)
+        engine.connect(player, to: instrumentMixer, format: format)
         activePlayers.append(player)
 
         player.scheduleBuffer(buffer, at: nil, options: []) { [weak self, weak player] in
