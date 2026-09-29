@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.6 iOS</title>
+<title>Royce Studio v1.7 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -36,7 +36,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.6 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.7 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -217,8 +217,32 @@ $('#nativeMonitorBtn').onclick=()=>{
 $('#nativeMonitorLevel').oninput=pushNativeVocalFX;
 ['vocLow','vocHigh'].forEach(id=>$('#'+id).oninput=()=>pushNativeVocalFX());
 
-$('#tuneToggle').onclick=()=>{const on=!$('#tuneToggle').classList.contains('on');$('#tuneToggle').classList.toggle('on',on);$('#tuneToggle').textContent=on?'On':'Off';$('#tuneStatus').textContent=on?'Auto‑Tune armed for vocal processing.':'Auto‑Tune is off.'};
-$('#strength').oninput=e=>$('#strengthVal').textContent=e.target.value+'%';$('#speed').oninput=e=>$('#speedVal').textContent=e.target.value+' ms';$('#human').oninput=e=>$('#humanVal').textContent=e.target.value+'%';
+function pushNativeTune(){
+ const on=$('#tuneToggle').classList.contains('on');
+ if(nativeAudioAvailable()&&window.royceNativeAudio.autoTune){
+   window.royceNativeAudio.autoTune(
+     on,
+     $('#key').value,
+     $('#scale').value,
+     +$('#strength').value/100,
+     +$('#speed').value,
+     +$('#human').value/100
+   );
+ }
+}
+$('#tuneToggle').onclick=()=>{
+ const on=!$('#tuneToggle').classList.contains('on');
+ $('#tuneToggle').classList.toggle('on',on);
+ $('#tuneToggle').textContent=on?'On':'Off';
+ $('#tuneStatus').textContent=on
+   ?(nativeAudioAvailable()?'Native Auto‑Tune active.':'Auto‑Tune controls armed; native correction requires the iOS app.')
+   :'Auto‑Tune is off.';
+ pushNativeTune();
+};
+$('#strength').oninput=e=>{$('#strengthVal').textContent=e.target.value+'%';pushNativeTune()};
+$('#speed').oninput=e=>{$('#speedVal').textContent=e.target.value+' ms';pushNativeTune()};
+$('#human').oninput=e=>{$('#humanVal').textContent=e.target.value+'%';pushNativeTune()};
+$('#key').onchange=pushNativeTune;$('#scale').onchange=pushNativeTune;
 </script>
 </body>
 </html>
