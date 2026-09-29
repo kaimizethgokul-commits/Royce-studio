@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.10 iOS</title>
+<title>Royce Studio v1.11 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,9 +39,9 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.10 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.11 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
-<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
+<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
 
 <section id="project" class="panel"><div class="card"><h2>Project</h2>
@@ -80,6 +80,12 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <div class="strip"><b>FX</b><div class="row"><label>Delay <span id="delayVal">10%</span></label><input id="delay" type="range" min="0" max="0.6" step="0.01" value="0.1"></div><div class="row"><label>Reverb <span id="reverbVal">12%</span></label><input id="reverb" type="range" min="0" max="0.6" step="0.01" value="0.12"></div><div class="row"><label>Compressor <span id="compVal">20%</span></label><input id="comp" type="range" min="0" max="1" step="0.01" value="0.2"></div></div>
 <div class="strip"><b>MASTER</b><div class="row"><label>Master Volume</label><input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.9"></div><div class="row"><label>Limiter Ceiling</label><input id="limiter" type="range" min="-6" max="0" step="0.1" value="-1"></div><button id="masterMute">Master Mute</button></div>
 </div></div></section>
+
+<section id="master" class="panel"><div class="card"><h2>Master Capture</h2>
+<p class="status" id="masterStatus">Capture the native iOS studio output, then play or share the result.</p>
+<div class="grid2"><button id="masterRecord" class="primary">Start Master</button><button id="masterPlay">Play Last Master</button></div>
+<div class="grid2" style="margin-top:10px"><button id="masterShare">Share Master</button><button id="masterStop">Stop Master</button></div>
+</div></section>
 
 <section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p>
 <div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div>
@@ -389,6 +395,39 @@ $('#nativeTakeShare').onclick=()=>{
    $('#micStatus').textContent='Native export is available in the iOS app.';
  }
 };
+
+let masterCapturing=false;
+$('#masterRecord').onclick=()=>{
+ if(!nativeAudioAvailable()||!window.royceNativeAudio.masterStart){
+   $('#masterStatus').textContent='Native Master Capture requires the iOS app.';
+   return;
+ }
+ if(masterCapturing)return;
+ window.royceNativeAudio.masterStart();
+ masterCapturing=true;
+ $('#masterRecord').textContent='Master Recording…';
+ $('#masterRecord').classList.add('on');
+ $('#masterStatus').textContent='Capturing native studio output.';
+};
+$('#masterStop').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.masterStop)window.royceNativeAudio.masterStop();
+ masterCapturing=false;
+ $('#masterRecord').textContent='Start Master';
+ $('#masterRecord').classList.remove('on');
+ $('#masterStatus').textContent='Master capture stopped.';
+};
+$('#masterPlay').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.masterPlay){
+   window.royceNativeAudio.masterPlay();
+   $('#masterStatus').textContent='Playing last master.';
+ }else $('#masterStatus').textContent='Native master playback requires the iOS app.';
+};
+$('#masterShare').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.masterShare){
+   window.royceNativeAudio.masterShare();
+ }else $('#masterStatus').textContent='Native master sharing requires the iOS app.';
+};
+
 let nativeMonitoring=false;
 $('#nativeMonitorBtn').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.monitor){
