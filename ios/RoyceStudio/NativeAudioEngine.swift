@@ -12,6 +12,7 @@ final class NativeAudioEngine {
     private let instrumentMixer = AVAudioMixerNode()
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
     private var instrumentGraphConnected = false
+    private var compressionAmount: Float = 0.2
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
     private let vocalPitch = AVAudioUnitTimePitch()
     private let vocalReverb = AVAudioUnitReverb()
@@ -105,11 +106,19 @@ final class NativeAudioEngine {
     ) {
         connectInstrumentGraphIfNeeded()
 
-        instrumentMixer.outputVolume = min(max(instrumentVolume, 0), 1)
+        let safeInstrumentVolume = min(max(instrumentVolume, 0), 1)
         instrumentMixer.pan = min(max(instrumentPan, -1), 1)
         instrumentEQ.bands[0].gain = min(max(instrumentLowEQ, -12), 12)
         instrumentEQ.bands[1].gain = min(max(instrumentHighEQ, -12), 12)
-        _ = compression
+        compressionAmount = min(max(compression, 0), 1)
+        // Safe native compression approximation: progressively lower bus headroom
+        // while preserving the user's fader position. This avoids unsupported
+        // DynamicsProcessor classes on iOS.
+        let compressionTrim = 1.0 - (compressionAmount * 0.18)
+        instrumentMixer.outputVolume = min(
+            max(safeInstrumentVolume * compressionTrim, 0),
+            1
+        )
 
         vocalFader = min(max(vocalVolume, 0), 1)
         vocalMixer.pan = min(max(vocalPan, -1), 1)
