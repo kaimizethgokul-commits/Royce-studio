@@ -25,6 +25,10 @@ final class NativeAudioEngine {
     private var currentPitchCorrection: Float = 0
     private var pitchTapInstalled = false
 
+    var lastTakeURL: URL? {
+        lastRecordingURL
+    }
+
     private init() {
         vocalEQ.bands[0].filterType = .lowShelf
         vocalEQ.bands[0].frequency = 180
