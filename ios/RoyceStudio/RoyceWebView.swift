@@ -353,14 +353,14 @@ struct RoyceWebView: UIViewRepresentable {
             case "playLastTake":
                 NativeAudioEngine.shared.playLastRecording()
             case "shareLastTake":
-                guard let url = NativeAudioEngine.shared.lastTakeURL,
-                      let webView = message.webView else { return }
-                let controller = UIActivityViewController(
-                    activityItems: [url],
-                    applicationActivities: nil
+                guard let webView = message.webView else { return }
+                shareGeneratedFile(
+                    from: webView,
+                    generator: {
+                        NativeAudioEngine.shared.exportLastTakeWAV()
+                    },
+                    failureJavaScript: "window.royceWAVExportFailed && window.royceWAVExportFailed('take')"
                 )
-                topViewController(from: webView.window?.rootViewController)?
-                    .present(controller, animated: true)
             case "listTakes":
                 let items = NativeAudioEngine.shared.takeLibrary()
                 if let data = try? JSONSerialization.data(withJSONObject: items),
@@ -375,14 +375,14 @@ struct RoyceWebView: UIViewRepresentable {
                 }
             case "shareTake":
                 guard let id = body["id"] as? String,
-                      let url = NativeAudioEngine.shared.takeURL(id: id),
                       let webView = message.webView else { return }
-                let controller = UIActivityViewController(
-                    activityItems: [url],
-                    applicationActivities: nil
+                shareGeneratedFile(
+                    from: webView,
+                    generator: {
+                        NativeAudioEngine.shared.exportTakeWAV(id: id)
+                    },
+                    failureJavaScript: "window.royceWAVExportFailed && window.royceWAVExportFailed('take')"
                 )
-                topViewController(from: webView.window?.rootViewController)?
-                    .present(controller, animated: true)
             case "deleteTake":
                 if let id = body["id"] as? String {
                     _ = NativeAudioEngine.shared.deleteTake(id: id)
@@ -489,14 +489,14 @@ struct RoyceWebView: UIViewRepresentable {
             case "masterPlay":
                 NativeAudioEngine.shared.playLastMasterCapture()
             case "masterShare":
-                guard let url = NativeAudioEngine.shared.lastMasterCaptureURL,
-                      let webView = message.webView else { return }
-                let controller = UIActivityViewController(
-                    activityItems: [url],
-                    applicationActivities: nil
+                guard let webView = message.webView else { return }
+                shareGeneratedFile(
+                    from: webView,
+                    generator: {
+                        NativeAudioEngine.shared.exportLastMasterWAV()
+                    },
+                    failureJavaScript: "window.royceWAVExportFailed && window.royceWAVExportFailed('master')"
                 )
-                topViewController(from: webView.window?.rootViewController)?
-                    .present(controller, animated: true)
             case "importMedia":
                 guard let webView = message.webView else { return }
                 hostWebView = webView
@@ -676,6 +676,33 @@ struct RoyceWebView: UIViewRepresentable {
                 )
             }
             pendingImportTarget = "timeline"
+        }
+
+        private func shareGeneratedFile(
+            from webView: WKWebView,
+            generator: @escaping () -> URL?,
+            failureJavaScript: String
+        ) {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self, weak webView] in
+                let url = generator()
+
+                DispatchQueue.main.async {
+                    guard let self, let webView else { return }
+
+                    guard let url else {
+                        webView.evaluateJavaScript(failureJavaScript)
+                        return
+                    }
+
+                    let controller = UIActivityViewController(
+                        activityItems: [url],
+                        applicationActivities: nil
+                    )
+                    self.topViewController(
+                        from: webView.window?.rootViewController
+                    )?.present(controller, animated: true)
+                }
+            }
         }
 
         private func topViewController(
