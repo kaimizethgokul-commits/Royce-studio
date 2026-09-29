@@ -6,6 +6,9 @@ final class NativeAudioEngine {
     private let engine = AVAudioEngine()
     private let sampleRate: Double = 48_000
     private var activePlayers: [AVAudioPlayerNode] = []
+    private var mediaPlayers: [String: AVAudioPlayerNode] = [:]
+    private var mediaFiles: [String: AVAudioFile] = [:]
+    private var mediaLoop: [String: Bool] = [:]
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
     private let vocalPitch = AVAudioUnitTimePitch()
     private let vocalReverb = AVAudioUnitReverb()
@@ -69,6 +72,93 @@ final class NativeAudioEngine {
             try engine.start()
         } catch {
             print("Royce native audio engine failed to start: \(error)")
+        }
+    }
+
+    func toggleMedia(
+        id: String,
+        url: URL,
+        volume: Float,
+        loop: Bool
+    ) {
+        startIfNeeded()
+
+        if let player = mediaPlayers[id] {
+            if player.isPlaying {
+                player.pause()
+            } else {
+                player.play()
+            }
+            player.volume = min(max(volume, 0), 1)
+            mediaLoop[id] = loop
+            return
+        }
+
+        guard let file = try? AVAudioFile(forReading: url) else { return }
+
+        let player = AVAudioPlayerNode()
+        player.volume = min(max(volume, 0), 1)
+
+        engine.attach(player)
+        engine.connect(
+            player,
+            to: engine.mainMixerNode,
+            format: file.processingFormat
+        )
+
+        mediaPlayers[id] = player
+        mediaFiles[id] = file
+        mediaLoop[id] = loop
+
+        scheduleMedia(id: id)
+        player.play()
+    }
+
+    func stopMedia(id: String) {
+        guard let player = mediaPlayers[id] else { return }
+        player.stop()
+        engine.detach(player)
+        mediaPlayers.removeValue(forKey: id)
+        mediaFiles.removeValue(forKey: id)
+        mediaLoop.removeValue(forKey: id)
+    }
+
+    func setMediaVolume(id: String, volume: Float) {
+        mediaPlayers[id]?.volume = min(max(volume, 0), 1)
+    }
+
+    func setMediaLoop(id: String, loop: Bool) {
+        mediaLoop[id] = loop
+    }
+
+    private func scheduleMedia(id: String) {
+        guard
+            let player = mediaPlayers[id],
+            let file = mediaFiles[id]
+        else { return }
+
+        let frameCount = AVAudioFrameCount(
+            min(Int64(UInt32.max), file.length)
+        )
+
+        player.scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: frameCount,
+            at: nil
+        ) { [weak self] in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                guard self.mediaPlayers[id] === player else { return }
+                if self.mediaLoop[id] == true {
+                    self.scheduleMedia(id: id)
+                    if !player.isPlaying {
+                        player.play()
+                    }
+                } else {
+                    self.stopMedia(id: id)
+                }
+            }
         }
     }
 
