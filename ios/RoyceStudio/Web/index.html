@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.14 iOS</title>
+<title>Royce Studio v1.15 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.14 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.15 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -49,6 +49,11 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <div class="grid2"><button id="saveNativeProject" class="primary">Save Project</button><button id="loadLastNativeProject">Load Last Project</button></div>
 <div class="grid2" style="margin-top:10px"><button id="refreshNativeProjects">Refresh Projects</button><button id="shareCurrentProject">Share Project</button></div>
 <p class="status" id="projectStatus">Native project saving is available in the iOS app.</p>
+<div id="recoveryBox" class="strip" style="display:none;margin-top:10px">
+  <b>Recovery Snapshot</b>
+  <p class="status" id="recoveryStatus">A recoverable session is available.</p>
+  <div class="grid2"><button id="restoreRecovery">Restore Recovery</button><button id="discardRecovery">Discard Recovery</button></div>
+</div>
 <div id="nativeProjectList" class="project-list"></div>
 </div></section>
 
@@ -302,7 +307,7 @@ window.royceNativeMediaImported=function(items){
    const a=new Audio();a.volume=1;
    audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1});
  }
- renderAudioTracks();paintBars();
+ renderAudioTracks();paintBars();scheduleRecovery();
 };
 window.royceNativeMediaImportCancelled=function(){};
 $('#nativeImportMedia').onclick=()=>{
@@ -317,13 +322,13 @@ $('#importTracks').onchange=async e=>{
    const a=new Audio();a.volume=1;
    audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1});
  }
- renderAudioTracks();paintBars();e.target.value='';
+ renderAudioTracks();paintBars();scheduleRecovery();e.target.value='';
 };
 $('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);else{t.audio.pause();t.audio.currentTime=0}});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
 
 function collectRoyceProject(){
  return {
-   version:'1.10-ios',
+   version:'1.15-ios',
    name:($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -419,6 +424,7 @@ window.royceApplyNativeProject=async function(p){
 };
 window.royceNativeProjectSaved=function(){
  $('#projectStatus').textContent='Project saved on iPhone.';
+ saveRecoverySnapshot();
  if(nativeAudioAvailable()&&window.royceNativeAudio.listProjects)window.royceNativeAudio.listProjects();
 };
 window.royceNativeProjectError=function(message){$('#projectStatus').textContent=message||'Project action failed.'};
@@ -433,6 +439,69 @@ window.royceReceiveProjectList=function(names){
    row.append(label,load,share);host.appendChild(row);
  });
 };
+
+let recoveryTimer=null,recoveryAvailable=null,recoverySuspended=false;
+function saveRecoverySnapshot(){
+ if(recoverySuspended)return;
+ try{
+   const project=collectRoyceProject();
+   project.recoverySavedAt=new Date().toISOString();
+   const json=JSON.stringify(project);
+   if(nativeAudioAvailable()&&window.royceNativeAudio.saveRecovery){
+     window.royceNativeAudio.saveRecovery(json);
+   }else{
+     localStorage.setItem('royceStudioRecoveryV1',json);
+   }
+ }catch(e){}
+}
+function scheduleRecovery(){
+ if(recoverySuspended)return;
+ clearTimeout(recoveryTimer);
+ recoveryTimer=setTimeout(saveRecoverySnapshot,900);
+}
+window.royceApplyRecovery=function(p){
+ if(!p||typeof p!=='object')return;
+ recoveryAvailable=p;
+ $('#recoveryBox').style.display='block';
+ const when=p.recoverySavedAt||p.savedAt||'';
+ $('#recoveryStatus').textContent=when?'Recovery available from '+new Date(when).toLocaleString()+'.':'A recoverable session is available.';
+};
+window.royceNoRecovery=function(){
+ recoveryAvailable=null;
+ $('#recoveryBox').style.display='none';
+};
+$('#restoreRecovery').onclick=async()=>{
+ if(!recoveryAvailable)return;
+ recoverySuspended=true;
+ await window.royceApplyNativeProject(recoveryAvailable);
+ recoverySuspended=false;
+ $('#recoveryBox').style.display='none';
+ $('#projectStatus').textContent='Recovery restored.';
+ scheduleRecovery();
+};
+$('#discardRecovery').onclick=()=>{
+ recoveryAvailable=null;
+ $('#recoveryBox').style.display='none';
+ if(nativeAudioAvailable()&&window.royceNativeAudio.clearRecovery)window.royceNativeAudio.clearRecovery();
+ else localStorage.removeItem('royceStudioRecoveryV1');
+ $('#projectStatus').textContent='Recovery discarded.';
+};
+document.addEventListener('input',scheduleRecovery,{passive:true});
+document.addEventListener('change',scheduleRecovery,{passive:true});
+document.addEventListener('click',e=>{if(e.target&&e.target.matches('button'))scheduleRecovery()},{passive:true});
+window.addEventListener('pagehide',saveRecoverySnapshot);
+window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveRecoverySnapshot()});
+setTimeout(()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.loadRecovery){
+   window.royceNativeAudio.loadRecovery();
+ }else{
+   try{
+     const p=JSON.parse(localStorage.getItem('royceStudioRecoveryV1')||'null');
+     if(p)window.royceApplyRecovery(p);
+   }catch(e){}
+ }
+},700);
+
 $('#saveNativeProject').onclick=()=>{
  const project=collectRoyceProject();
  if(nativeAudioAvailable()&&window.royceNativeAudio.saveProject){
