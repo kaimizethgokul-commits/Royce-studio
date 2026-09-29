@@ -59,6 +59,9 @@ struct RoyceWebView: UIViewRepresentable {
               playLastTake: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'playLastTake'});
               },
+              shareLastTake: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'shareLastTake'});
+              },
               autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'autoTune',
@@ -158,6 +161,15 @@ struct RoyceWebView: UIViewRepresentable {
                 NativeAudioEngine.shared.stopRecording()
             case "playLastTake":
                 NativeAudioEngine.shared.playLastRecording()
+            case "shareLastTake":
+                guard let url = NativeAudioEngine.shared.lastTakeURL,
+                      let webView = message.webView else { return }
+                let controller = UIActivityViewController(
+                    activityItems: [url],
+                    applicationActivities: nil
+                )
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(controller, animated: true)
             case "autoTune":
                 let enabled = body["enabled"] as? Bool ?? false
                 let key = body["key"] as? String ?? "C"
@@ -176,6 +188,21 @@ struct RoyceWebView: UIViewRepresentable {
             default:
                 break
             }
+        }
+
+        private func topViewController(
+            from root: UIViewController?
+        ) -> UIViewController? {
+            if let presented = root?.presentedViewController {
+                return topViewController(from: presented)
+            }
+            if let navigation = root as? UINavigationController {
+                return topViewController(from: navigation.visibleViewController)
+            }
+            if let tab = root as? UITabBarController {
+                return topViewController(from: tab.selectedViewController)
+            }
+            return root
         }
 
         @available(iOS 15.0, *)
