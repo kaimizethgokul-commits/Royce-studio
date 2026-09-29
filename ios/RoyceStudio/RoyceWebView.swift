@@ -97,6 +97,18 @@ struct RoyceWebView: UIViewRepresentable {
                   type:'shareProject',
                   name:name
                 });
+              },
+              masterStart: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'masterStart'});
+              },
+              masterStop: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'masterStop'});
+              },
+              masterPlay: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'masterPlay'});
+              },
+              masterShare: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'masterShare'});
               }
             };
             """,
@@ -247,6 +259,21 @@ struct RoyceWebView: UIViewRepresentable {
             case "shareProject":
                 guard let name = body["name"] as? String,
                       let url = NativeProjectStore.shared.url(named: name),
+                      let webView = message.webView else { return }
+                let controller = UIActivityViewController(
+                    activityItems: [url],
+                    applicationActivities: nil
+                )
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(controller, animated: true)
+            case "masterStart":
+                NativeAudioEngine.shared.startMasterCapture()
+            case "masterStop":
+                NativeAudioEngine.shared.stopMasterCapture()
+            case "masterPlay":
+                NativeAudioEngine.shared.playLastMasterCapture()
+            case "masterShare":
+                guard let url = NativeAudioEngine.shared.lastMasterCaptureURL,
                       let webView = message.webView else { return }
                 let controller = UIActivityViewController(
                     activityItems: [url],
