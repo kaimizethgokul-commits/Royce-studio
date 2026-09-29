@@ -126,6 +126,44 @@ struct RoyceWebView: UIViewRepresentable {
               importMedia: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'importMedia'});
               },
+              importDeck: function(deck) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'importDeck',
+                  deck:deck
+                });
+              },
+              deckToggle: function(deck) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deckToggle',
+                  deck:deck
+                });
+              },
+              deckCue: function(deck) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deckCue',
+                  deck:deck
+                });
+              },
+              deckPitch: function(deck, semitones) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deckPitch',
+                  deck:deck,
+                  semitones:semitones
+                });
+              },
+              deckFilter: function(deck, frequency) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deckFilter',
+                  deck:deck,
+                  frequency:frequency
+                });
+              },
+              deckCrossfader: function(value) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deckCrossfader',
+                  value:value
+                });
+              },
               mediaToggle: function(id, volume, loop) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'mediaToggle', id:id, volume:volume, loop:!!loop
@@ -196,6 +234,8 @@ struct RoyceWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIDocumentPickerDelegate {
         weak var hostWebView: WKWebView?
+        var pendingImportTarget = "timeline"
+
         func webView(
             _ webView: WKWebView,
             didFinish navigation: WKNavigation!
@@ -353,6 +393,7 @@ struct RoyceWebView: UIViewRepresentable {
             case "importMedia":
                 guard let webView = message.webView else { return }
                 hostWebView = webView
+                pendingImportTarget = "timeline"
                 let picker = UIDocumentPickerViewController(
                     forOpeningContentTypes: [.audio],
                     asCopy: true
@@ -361,6 +402,36 @@ struct RoyceWebView: UIViewRepresentable {
                 picker.allowsMultipleSelection = true
                 topViewController(from: webView.window?.rootViewController)?
                     .present(picker, animated: true)
+            case "importDeck":
+                guard let webView = message.webView else { return }
+                let deck = (body["deck"] as? String ?? "A").uppercased()
+                hostWebView = webView
+                pendingImportTarget = deck == "B" ? "deckB" : "deckA"
+                let picker = UIDocumentPickerViewController(
+                    forOpeningContentTypes: [.audio],
+                    asCopy: true
+                )
+                picker.delegate = self
+                picker.allowsMultipleSelection = false
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(picker, animated: true)
+            case "deckToggle":
+                let deck = body["deck"] as? String ?? "A"
+                NativeAudioEngine.shared.toggleDeck(deck)
+            case "deckCue":
+                let deck = body["deck"] as? String ?? "A"
+                NativeAudioEngine.shared.cueDeck(deck)
+            case "deckPitch":
+                let deck = body["deck"] as? String ?? "A"
+                let semitones = Float(body["semitones"] as? Double ?? 0)
+                NativeAudioEngine.shared.setDeckPitch(deck, semitones: semitones)
+            case "deckFilter":
+                let deck = body["deck"] as? String ?? "A"
+                let frequency = Float(body["frequency"] as? Double ?? 12_000)
+                NativeAudioEngine.shared.setDeckFilter(deck, frequency: frequency)
+            case "deckCrossfader":
+                let value = Float(body["value"] as? Double ?? 0)
+                NativeAudioEngine.shared.setCrossfader(value)
             case "mediaToggle":
                 guard
                     let id = body["id"] as? String,
@@ -413,6 +484,31 @@ struct RoyceWebView: UIViewRepresentable {
             _ controller: UIDocumentPickerViewController,
             didPickDocumentsAt urls: [URL]
         ) {
+            if pendingImportTarget == "deckA" || pendingImportTarget == "deckB" {
+                guard
+                    let url = urls.first,
+                    let item = try? NativeMediaStore.shared.importFile(from: url)
+                else { return }
+
+                let deck = pendingImportTarget == "deckB" ? "B" : "A"
+                _ = NativeAudioEngine.shared.loadDeck(deck: deck, url: item.url)
+
+                let payload: [String: String] = [
+                    "id": item.id,
+                    "name": item.name
+                ]
+                guard
+                    let data = try? JSONSerialization.data(withJSONObject: payload),
+                    let json = String(data: data, encoding: .utf8)
+                else { return }
+
+                hostWebView?.evaluateJavaScript(
+                    "window.royceNativeDeckImported && window.royceNativeDeckImported('\(deck)', \(json))"
+                )
+                pendingImportTarget = "timeline"
+                return
+            }
+
             var imported: [[String: String]] = []
 
             for url in urls {
@@ -437,9 +533,16 @@ struct RoyceWebView: UIViewRepresentable {
         func documentPickerWasCancelled(
             _ controller: UIDocumentPickerViewController
         ) {
-            hostWebView?.evaluateJavaScript(
-                "window.royceNativeMediaImportCancelled && window.royceNativeMediaImportCancelled()"
-            )
+            if pendingImportTarget == "deckA" || pendingImportTarget == "deckB" {
+                hostWebView?.evaluateJavaScript(
+                    "window.royceNativeDeckImportCancelled && window.royceNativeDeckImportCancelled()"
+                )
+            } else {
+                hostWebView?.evaluateJavaScript(
+                    "window.royceNativeMediaImportCancelled && window.royceNativeMediaImportCancelled()"
+                )
+            }
+            pendingImportTarget = "timeline"
         }
 
         private func topViewController(
