@@ -58,7 +58,7 @@ final class NativeAudioEngine {
 
         instrumentCompressor.threshold = -18
         instrumentCompressor.headRoom = 5
-        instrumentCompressor.compressionRatio = 3
+        instrumentCompressor.headRoom = 5
         instrumentCompressor.attackTime = 0.01
         instrumentCompressor.releaseTime = 0.12
 
@@ -118,8 +118,8 @@ final class NativeAudioEngine {
         instrumentEQ.bands[1].gain = min(max(instrumentHighEQ, -12), 12)
 
         let amount = min(max(compression, 0), 1)
-        instrumentCompressor.threshold = -10 - (amount * 30)
-        instrumentCompressor.compressionRatio = 1.5 + (amount * 8.5)
+        instrumentCompressor.threshold = -10.0 - (amount * 30.0)
+        instrumentCompressor.headRoom = 8.0 - (amount * 6.0)
         instrumentCompressor.attackTime = 0.008
         instrumentCompressor.releaseTime = 0.12
 
@@ -129,9 +129,10 @@ final class NativeAudioEngine {
             vocalMixer.outputVolume = vocalFader * monitorLevel
         }
 
-        let ceilingGain = pow(10.0, min(max(limiterCeiling, -6), 0) / 20.0)
+        let ceilingDB = min(max(limiterCeiling, -6.0), 0.0)
+        let ceilingGain = Float(pow(10.0, Double(ceilingDB) / 20.0))
         engine.mainMixerNode.outputVolume = min(
-            max(masterVolume, 0),
+            max(masterVolume, 0.0),
             ceilingGain
         )
     }
