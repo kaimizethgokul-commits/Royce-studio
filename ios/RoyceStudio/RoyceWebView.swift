@@ -4,7 +4,7 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 struct RoyceWebView: UIViewRepresentable {
-    private let studioURL = URL(string: "https://royce-studio-psi.vercel.app/?native=ios")!
+    private let fallbackStudioURL = URL(string: "https://royce-studio-psi.vercel.app/?native=ios")!
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -154,12 +154,23 @@ struct RoyceWebView: UIViewRepresentable {
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
 
-        let request = URLRequest(
-            url: studioURL,
-            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
-            timeoutInterval: 30
-        )
-        webView.load(request)
+        if let localURL = Bundle.main.url(
+            forResource: "index",
+            withExtension: "html",
+            subdirectory: "Web"
+        ) {
+            webView.loadFileURL(
+                localURL,
+                allowingReadAccessTo: localURL.deletingLastPathComponent()
+            )
+        } else {
+            let request = URLRequest(
+                url: fallbackStudioURL,
+                cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                timeoutInterval: 30
+            )
+            webView.load(request)
+        }
         return webView
     }
 
