@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.11 iOS</title>
+<title>Royce Studio v1.12 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.11 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.12 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -64,7 +64,8 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
 <p class="status">Import beats or loops. Each track can play, loop, mute and set its start bar.</p>
-<div class="grid2"><label class="file-btn">+ Import Audio<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="stopAllAudio">Stop All</button></div>
+<div class="grid2"><label class="file-btn">+ Browser Import<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="nativeImportMedia">+ Import from iPhone Files</button></div>
+<div class="grid2" style="margin-top:10px"><button id="stopAllAudio">Stop All</button><span></span></div>
 <div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
 <div id="audioList" class="audio-list" style="margin-top:12px"><p class="status">No imported tracks yet.</p></div>
 </div></section>
@@ -189,13 +190,32 @@ function renderAudioTracks(){
   row.innerHTML='<div class="audio-top"><b></b><span class="badge">Track '+(i+1)+'</span></div>'+
   '<audio controls preload="metadata" style="width:100%"></audio>'+
   '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="loop">Loop Off</button><button data-act="remove">Remove</button></div>'+
-  '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+t.audio.volume+'"></div>'+
+  '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+(t.audio?.volume??t.volume??1)+'"></div>'+
   '<div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div></div>';
-  row.querySelector('b').textContent=t.name; const a=row.querySelector('audio');a.src=t.url;a.loop=t.loop;a.volume=t.audio.volume;t.audio=a;
-  row.querySelector('[data-act="play"]').onclick=()=>a.paused?a.play():a.pause();
-  row.querySelector('[data-act="loop"]').onclick=e=>{t.loop=!t.loop;a.loop=t.loop;e.target.textContent=t.loop?'Loop On':'Loop Off';e.target.classList.toggle('on',t.loop)};
-  row.querySelector('[data-act="remove"]').onclick=()=>{a.pause();URL.revokeObjectURL(t.url);audioTracks.splice(i,1);renderAudioTracks();paintBars()};
-  row.querySelector('[data-act="vol"]').oninput=e=>a.volume=+e.target.value;
+  row.querySelector('b').textContent=t.name;
+  const a=row.querySelector('audio'),vol=t.audio?.volume??t.volume??1;
+  a.volume=vol;t.volume=vol;t.audio=a;
+  if(t.native){a.style.display='none';row.querySelector('.badge').textContent='Native Track '+(i+1)}
+  else{a.src=t.url;a.loop=t.loop}
+  row.querySelector('[data-act="play"]').onclick=()=>{
+    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaToggle){
+      window.royceNativeAudio.mediaToggle(t.id,a.volume,t.loop);
+    }else a.paused?a.play():a.pause();
+  };
+  row.querySelector('[data-act="loop"]').onclick=e=>{
+    t.loop=!t.loop;a.loop=t.loop;
+    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaLoop)window.royceNativeAudio.mediaLoop(t.id,t.loop);
+    e.target.textContent=t.loop?'Loop On':'Loop Off';e.target.classList.toggle('on',t.loop)
+  };
+  row.querySelector('[data-act="remove"]').onclick=()=>{
+    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);
+    else{a.pause();try{if(t.url)URL.revokeObjectURL(t.url)}catch(e){}}
+    audioTracks.splice(i,1);renderAudioTracks();paintBars()
+  };
+  row.querySelector('[data-act="vol"]').oninput=e=>{
+    const v=+e.target.value;t.volume=v;a.volume=v;
+    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaVolume)window.royceNativeAudio.mediaVolume(t.id,v);
+  };
   row.querySelector('[data-act="bar"]').oninput=e=>{t.bar=+e.target.value;paintBars()};
   host.appendChild(row);
  });
@@ -203,6 +223,18 @@ function renderAudioTracks(){
 function paintBars(){
  $$('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('on',audioTracks.some(t=>t.bar===i+1)));
 }
+window.royceNativeMediaImported=function(items){
+ for(const item of (items||[])){
+   const a=new Audio();a.volume=1;
+   audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1});
+ }
+ renderAudioTracks();paintBars();
+};
+window.royceNativeMediaImportCancelled=function(){};
+$('#nativeImportMedia').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.importMedia)window.royceNativeAudio.importMedia();
+ else $('#projectStatus').textContent='Native Files import is available in the iOS app.';
+};
 $('#importTracks').onchange=async e=>{
  const files=[...(e.target.files||[])];
  for(const f of files){
@@ -213,7 +245,7 @@ $('#importTracks').onchange=async e=>{
  }
  renderAudioTracks();paintBars();e.target.value='';
 };
-$('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{t.audio.pause();t.audio.currentTime=0});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
+$('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);else{t.audio.pause();t.audio.currentTime=0}});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
 
 function collectRoyceProject(){
  return {
@@ -255,9 +287,10 @@ function collectRoyceProject(){
    timeline:audioTracks.map(t=>({
      id:t.id||null,
      name:t.name,
+     native:!!t.native,
      loop:!!t.loop,
      bar:+t.bar,
-     volume:t.audio?.volume??1
+     volume:t.audio?.volume??t.volume??1
    }))
  };
 }
@@ -267,6 +300,11 @@ async function restoreTimelineFromProject(items){
  let missing=0;
  for(const meta of (items||[])){
    if(!meta?.id){missing++;continue}
+   if(meta.native&&nativeAudioAvailable()){
+     const a=new Audio();a.volume=meta.volume??1;
+     audioTracks.push({id:meta.id,name:meta.name||'Native Audio',native:true,url:'',audio:a,volume:meta.volume??1,loop:!!meta.loop,bar:+meta.bar||1});
+     continue;
+   }
    try{
      const stored=await rsLoadAudio(meta.id);
      if(!stored?.blob){missing++;continue}
