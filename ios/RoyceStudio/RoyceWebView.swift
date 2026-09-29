@@ -15,6 +15,29 @@ struct RoyceWebView: UIViewRepresentable {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.websiteDataStore = .default()
 
+        configuration.userContentController.add(context.coordinator, name: "royceAudio")
+        let bridge = WKUserScript(
+            source: """
+            window.royceNativeAudio = {
+              drum: function(name) {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'drum', name:name});
+              },
+              tone: function(frequency, waveform, duration, gain) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'tone',
+                  frequency:frequency,
+                  waveform:waveform || 'sine',
+                  duration:duration || 0.55,
+                  gain:gain || 0.16
+                });
+              }
+            };
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        configuration.userContentController.addUserScript(bridge)
+
         let preferences = WKWebpagePreferences()
         preferences.allowsContentJavaScript = true
         configuration.defaultWebpagePreferences = preferences
@@ -39,12 +62,42 @@ struct RoyceWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         func webView(
             _ webView: WKWebView,
             didFinish navigation: WKNavigation!
         ) {
             AudioSessionManager.shared.configure()
+            NativeAudioEngine.shared.startIfNeeded()
+        }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "royceAudio",
+                  let body = message.body as? [String: Any],
+                  let type = body["type"] as? String else { return }
+
+            switch type {
+            case "drum":
+                if let name = body["name"] as? String {
+                    NativeAudioEngine.shared.playDrum(name)
+                }
+            case "tone":
+                let frequency = body["frequency"] as? Double ?? 440
+                let waveform = body["waveform"] as? String ?? "sine"
+                let duration = body["duration"] as? Double ?? 0.55
+                let gain = body["gain"] as? Double ?? 0.16
+                NativeAudioEngine.shared.playTone(
+                    frequency: frequency,
+                    waveform: waveform,
+                    duration: duration,
+                    gain: gain
+                )
+            default:
+                break
+            }
         }
 
         @available(iOS 15.0, *)
