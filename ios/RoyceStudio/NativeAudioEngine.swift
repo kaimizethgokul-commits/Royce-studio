@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 
 final class NativeAudioEngine {
     static let shared = NativeAudioEngine()
@@ -468,6 +469,91 @@ final class NativeAudioEngine {
                 }
             }
         }
+    }
+
+    private var exportsDirectory: URL {
+        let docs = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+        let dir = docs.appendingPathComponent("RoyceExports", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: dir,
+            withIntermediateDirectories: true
+        )
+        return dir
+    }
+
+    private func exportWAV(
+        sourceURL: URL,
+        label: String
+    ) -> URL? {
+        guard let source = try? AVAudioFile(forReading: sourceURL) else {
+            return nil
+        }
+
+        let sourceFormat = source.processingFormat
+        guard
+            sourceFormat.sampleRate > 0,
+            sourceFormat.channelCount > 0
+        else { return nil }
+
+        let destination = exportsDirectory.appendingPathComponent(
+            "\(label)-\(Int(Date().timeIntervalSince1970)).wav"
+        )
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: sourceFormat.sampleRate,
+            AVNumberOfChannelsKey: Int(sourceFormat.channelCount),
+            AVLinearPCMBitDepthKey: 24,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
+        ]
+
+        do {
+            let output = try AVAudioFile(
+                forWriting: destination,
+                settings: settings,
+                commonFormat: .pcmFormatFloat32,
+                interleaved: false
+            )
+
+            guard let buffer = AVAudioPCMBuffer(
+                pcmFormat: sourceFormat,
+                frameCapacity: 4_096
+            ) else { return nil }
+
+            while source.framePosition < source.length {
+                let remaining = source.length - source.framePosition
+                let frames = AVAudioFrameCount(
+                    min(Int64(buffer.frameCapacity), remaining)
+                )
+                try source.read(into: buffer, frameCount: frames)
+                guard buffer.frameLength > 0 else { break }
+                try output.write(from: buffer)
+            }
+
+            return destination
+        } catch {
+            print("Royce WAV export error: \(error)")
+            return nil
+        }
+    }
+
+    func exportLastMasterWAV() -> URL? {
+        guard let source = lastMasterURL else { return nil }
+        return exportWAV(sourceURL: source, label: "Royce-Master")
+    }
+
+    func exportLastTakeWAV() -> URL? {
+        guard let source = lastRecordingURL else { return nil }
+        return exportWAV(sourceURL: source, label: "Royce-Vocal-Take")
+    }
+
+    func exportTakeWAV(id: String) -> URL? {
+        guard let source = takeURL(id: id) else { return nil }
+        return exportWAV(sourceURL: source, label: "Royce-Vocal-Take")
     }
 
     func startMasterCapture() {
