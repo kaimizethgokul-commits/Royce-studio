@@ -46,6 +46,18 @@ struct RoyceWebView: UIViewRepresentable {
                   reverb:reverb,
                   delay:delay
                 });
+              },
+              prepareMic: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'prepareMic'});
+              },
+              recordStart: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'recordStart'});
+              },
+              recordStop: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'recordStop'});
+              },
+              playLastTake: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'playLastTake'});
               }
             };
             """,
@@ -127,6 +139,14 @@ struct RoyceWebView: UIViewRepresentable {
                     reverb: Float(reverb),
                     delay: Float(delay)
                 )
+            case "prepareMic":
+                NativeAudioEngine.shared.prepareMicrophone()
+            case "recordStart":
+                NativeAudioEngine.shared.startRecording()
+            case "recordStop":
+                NativeAudioEngine.shared.stopRecording()
+            case "playLastTake":
+                NativeAudioEngine.shared.playLastRecording()
             default:
                 break
             }
