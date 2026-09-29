@@ -24,9 +24,16 @@ final class NativeAudioEngine {
     private var tuneHumanize: Float = 0.20
     private var currentPitchCorrection: Float = 0
     private var pitchTapInstalled = false
+    private var masterRecordingFile: AVAudioFile?
+    private var lastMasterURL: URL?
+    private var isMasterRecording = false
 
     var lastTakeURL: URL? {
         lastRecordingURL
+    }
+
+    var lastMasterCaptureURL: URL? {
+        lastMasterURL
     }
 
     private init() {
@@ -63,6 +70,78 @@ final class NativeAudioEngine {
         } catch {
             print("Royce native audio engine failed to start: \(error)")
         }
+    }
+
+    func startMasterCapture() {
+        guard !isMasterRecording else { return }
+        startIfNeeded()
+
+        let mixer = engine.mainMixerNode
+        let format = mixer.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { return }
+
+        let directory = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+        let url = directory.appendingPathComponent(
+            "Royce-Master-\(Int(Date().timeIntervalSince1970)).caf"
+        )
+
+        do {
+            let file = try AVAudioFile(
+                forWriting: url,
+                settings: format.settings
+            )
+            masterRecordingFile = file
+            lastMasterURL = url
+            isMasterRecording = true
+
+            mixer.installTap(
+                onBus: 0,
+                bufferSize: 2_048,
+                format: format
+            ) { [weak self] buffer, _ in
+                guard let self, self.isMasterRecording else { return }
+                try? self.masterRecordingFile?.write(from: buffer)
+            }
+        } catch {
+            print("Royce master capture start error: \(error)")
+            masterRecordingFile = nil
+            isMasterRecording = false
+        }
+    }
+
+    func stopMasterCapture() {
+        guard isMasterRecording else { return }
+        engine.mainMixerNode.removeTap(onBus: 0)
+        isMasterRecording = false
+        masterRecordingFile = nil
+    }
+
+    func playLastMasterCapture() {
+        guard let url = lastMasterURL,
+              let file = try? AVAudioFile(forReading: url) else { return }
+
+        startIfNeeded()
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        engine.connect(
+            player,
+            to: engine.mainMixerNode,
+            format: file.processingFormat
+        )
+        activePlayers.append(player)
+
+        player.scheduleFile(file, at: nil) { [weak self, weak player] in
+            guard let self, let player else { return }
+            DispatchQueue.main.async {
+                player.stop()
+                self.engine.detach(player)
+                self.activePlayers.removeAll { $0 === player }
+            }
+        }
+        player.play()
     }
 
     func setAutoTune(
