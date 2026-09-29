@@ -132,6 +132,13 @@ struct RoyceWebView: UIViewRepresentable {
                   deck:deck
                 });
               },
+              loadDeckMedia: function(deck, id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'loadDeckMedia',
+                  deck:deck,
+                  id:id
+                });
+              },
               deckToggle: function(deck) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'deckToggle',
@@ -415,6 +422,24 @@ struct RoyceWebView: UIViewRepresentable {
                 picker.allowsMultipleSelection = false
                 topViewController(from: webView.window?.rootViewController)?
                     .present(picker, animated: true)
+            case "loadDeckMedia":
+                let deck = (body["deck"] as? String ?? "A").uppercased()
+                guard
+                    let id = body["id"] as? String,
+                    let item = NativeMediaStore.shared.item(id: id)
+                else { return }
+                if NativeAudioEngine.shared.loadDeck(deck: deck, url: item.url) {
+                    let payload: [String: String] = [
+                        "id": item.id,
+                        "name": item.name
+                    ]
+                    if let data = try? JSONSerialization.data(withJSONObject: payload),
+                       let json = String(data: data, encoding: .utf8) {
+                        message.webView?.evaluateJavaScript(
+                            "window.royceNativeDeckImported && window.royceNativeDeckImported('\(deck)', \(json))"
+                        )
+                    }
+                }
             case "deckToggle":
                 let deck = body["deck"] as? String ?? "A"
                 NativeAudioEngine.shared.toggleDeck(deck)
