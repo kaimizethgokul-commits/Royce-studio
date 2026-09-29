@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.20 iOS</title>
+<title>Royce Studio v1.21 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.20 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.21 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -73,6 +73,24 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
 <p class="status" id="timelineStatus">Stopped · Bar 1</p>
+<div class="strip" style="margin-top:10px">
+  <div class="audio-top"><b>Punch-In Recording</b><span class="badge">iOS</span></div>
+  <p class="status" id="punchStatus">Redo only a chosen bar range while the arrangement plays.</p>
+  <div class="grid2">
+    <button id="punchToggle">Punch-In Off</button>
+    <button id="punchRecord" class="primary">Record Punch</button>
+  </div>
+  <div class="grid2">
+    <div class="row">
+      <label>Start Bar <span id="punchStartVal">2</span></label>
+      <input id="punchStart" type="range" min="1" max="8" step="1" value="2">
+    </div>
+    <div class="row">
+      <label>End Bar <span id="punchEndVal">4</span></label>
+      <input id="punchEnd" type="range" min="1" max="8" step="1" value="4">
+    </div>
+  </div>
+</div>
 <div class="grid2"><label class="file-btn">+ Browser Import<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="nativeImportMedia">+ Import from iPhone Files</button></div>
 <div class="grid2" style="margin-top:10px"><button id="stopAllAudio">Stop All</button><span></span></div>
 <div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
@@ -128,7 +146,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div>
 
 <script>
-let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false,nativeDecks={A:null,B:null},nativeDeckPlaying={A:false,B:false},metronomeEnabled=false,countInEnabled=false,countInTimer=null,selectedTakeId=null,compLoadedTakeId=null;
+let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false,nativeDecks={A:null,B:null},nativeDeckPlaying={A:false,B:false},metronomeEnabled=false,countInEnabled=false,countInTimer=null,selectedTakeId=null,compLoadedTakeId=null,punchInEnabled=false,punchTimers=[],punchRecording=false;
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 const RS_MEDIA_DB='RoyceStudioMediaV1',RS_MEDIA_STORE='audio';
 function rsMediaDB(){
@@ -280,10 +298,19 @@ function timelineBpm(){
 }
 function stopTimeline(stopMaster=false){
  timelineTimers.forEach(clearTimeout);timelineTimers=[];
+ punchTimers.forEach(clearTimeout);punchTimers=[];
  if(countInTimer){clearTimeout(countInTimer);countInTimer=null}
  if(timelineClock){clearInterval(timelineClock);timelineClock=null}
  if(nativeAudioAvailable()&&window.royceNativeAudio.metronomeStop)window.royceNativeAudio.metronomeStop()
  if(nativeAudioAvailable()&&window.royceNativeAudio.compStop)window.royceNativeAudio.compStop();
+ if(punchRecording&&nativeAudioAvailable()&&window.royceNativeAudio.recordStop){
+   window.royceNativeAudio.recordStop();
+   punchRecording=false;
+   nativeRecording=false;
+   q('#recBtn').textContent='Start Recording';
+   q('#punchStatus').textContent='Punch recording stopped.';
+   setTimeout(refreshTakeLibrary,250);
+ }
  audioTracks.forEach(t=>{
    if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);
    else if(t.audio){t.audio.pause();t.audio.currentTime=0}
@@ -366,6 +393,80 @@ q('#timelineRecord').onclick=()=>{
    countInTimer=setTimeout(()=>{countInTimer=null;startTimeline(true)},barMs);
  }else startTimeline(true);
 };
+
+function normalizePunchBars(){
+ let start=Math.max(1,Math.min(8,+q('#punchStart').value||1));
+ let end=Math.max(1,Math.min(8,+q('#punchEnd').value||1));
+ if(end<start){end=start;q('#punchEnd').value=end}
+ q('#punchStartVal').textContent=start;
+ q('#punchEndVal').textContent=end;
+ return {start,end};
+}
+function startPunchSession(){
+ if(!(nativeAudioAvailable()&&window.royceNativeAudio.recordStart&&window.royceNativeAudio.recordStop)){
+   q('#punchStatus').textContent='Punch-In recording requires the native iOS app.';
+   return;
+ }
+ const bars=normalizePunchBars();
+ const bpm=timelineBpm(),barMs=240000/bpm;
+ startTimeline(false);
+
+ const startDelay=Math.max(0,(bars.start-1)*barMs);
+ const stopDelay=Math.max(startDelay+100,bars.end*barMs);
+
+ punchTimers.push(setTimeout(()=>{
+   window.royceNativeAudio.recordStart();
+   punchRecording=true;
+   nativeRecording=true;
+   q('#recBtn').textContent='Stop Recording';
+   q('#punchRecord').classList.add('on');
+   q('#punchStatus').textContent='Recording punch · Bars '+bars.start+'–'+bars.end;
+ },startDelay));
+
+ punchTimers.push(setTimeout(()=>{
+   if(punchRecording){
+     window.royceNativeAudio.recordStop();
+     punchRecording=false;
+     nativeRecording=false;
+     q('#recBtn').textContent='Start Recording';
+     q('#punchRecord').classList.remove('on');
+     q('#punchStatus').textContent='Punch take recorded · Bars '+bars.start+'–'+bars.end;
+     setTimeout(refreshTakeLibrary,250);
+   }
+ },stopDelay));
+}
+q('#punchToggle').onclick=()=>{
+ punchInEnabled=!punchInEnabled;
+ q('#punchToggle').textContent=punchInEnabled?'Punch-In On':'Punch-In Off';
+ q('#punchToggle').classList.toggle('on',punchInEnabled);
+ q('#punchStatus').textContent=punchInEnabled?'Punch-In armed. Choose the bar range.':'Redo only a chosen bar range while the arrangement plays.';
+ scheduleRecovery();
+};
+q('#punchStart').oninput=()=>{normalizePunchBars();scheduleRecovery()};
+q('#punchEnd').oninput=()=>{normalizePunchBars();scheduleRecovery()};
+q('#punchRecord').onclick=()=>{
+ if(!punchInEnabled){
+   q('#punchStatus').textContent='Turn Punch-In on first.';
+   return;
+ }
+ if(punchRecording){
+   stopTimeline(false);
+   return;
+ }
+ if(countInEnabled){
+   stopTimeline(false);
+   const bpm=timelineBpm(),barMs=240000/bpm;
+   if(nativeAudioAvailable()&&window.royceNativeAudio.metronomeStart){
+     window.royceNativeAudio.metronomeVolume?.(+q('#metronomeVolume').value);
+     window.royceNativeAudio.metronomeStart(bpm);
+   }
+   q('#punchStatus').textContent='Punch count-in · 1 bar · '+bpm+' BPM';
+   countInTimer=setTimeout(()=>{countInTimer=null;startPunchSession()},barMs);
+ }else{
+   startPunchSession();
+ }
+};
+
 q('#timelineBpm').onchange=()=>{
  const bpm=timelineBpm();
  if(timelineClock&&metronomeEnabled&&nativeAudioAvailable()&&window.royceNativeAudio.metronomeStart)window.royceNativeAudio.metronomeStart(bpm);
@@ -440,7 +541,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.20-ios',
+   version:'1.21-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -448,6 +549,11 @@ function collectRoyceProject(){
      enabled:metronomeEnabled,
      countIn:countInEnabled,
      volume:+q('#metronomeVolume').value
+   },
+   punch:{
+     enabled:punchInEnabled,
+     startBar:+q('#punchStart').value||2,
+     endBar:+q('#punchEnd').value||4
    },
    instruments:{
      keyType:q('#keyType').value,
@@ -534,8 +640,14 @@ function applyValue(id,value){
 window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');applyValue('timelineBpm',p.bpm||120);
- const metro=p.metronome||{};
+ const metro=p.metronome||{},punch=p.punch||{};
  metronomeEnabled=!!metro.enabled;countInEnabled=!!metro.countIn;
+ punchInEnabled=!!punch.enabled;
+ applyValue('punchStart',punch.startBar||2);
+ applyValue('punchEnd',punch.endBar||4);
+ normalizePunchBars();
+ q('#punchToggle').textContent=punchInEnabled?'Punch-In On':'Punch-In Off';
+ q('#punchToggle').classList.toggle('on',punchInEnabled);
  applyValue('metronomeVolume',metro.volume??0.22);
  q('#metronomeToggle').textContent=metronomeEnabled?'Click On':'Click Off';
  q('#metronomeToggle').classList.toggle('on',metronomeEnabled);
