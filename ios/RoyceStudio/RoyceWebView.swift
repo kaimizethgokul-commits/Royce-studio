@@ -99,6 +99,18 @@ struct RoyceWebView: UIViewRepresentable {
                   name:name
                 });
               },
+              saveRecovery: function(json) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'saveRecovery',
+                  json:json
+                });
+              },
+              loadRecovery: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'loadRecovery'});
+              },
+              clearRecovery: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'clearRecovery'});
+              },
               masterStart: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'masterStart'});
               },
@@ -308,6 +320,21 @@ struct RoyceWebView: UIViewRepresentable {
                 )
                 topViewController(from: webView.window?.rootViewController)?
                     .present(controller, animated: true)
+            case "saveRecovery":
+                let json = body["json"] as? String ?? "{}"
+                NativeProjectStore.shared.saveRecovery(json: json)
+            case "loadRecovery":
+                if let json = NativeProjectStore.shared.loadRecovery() {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceApplyRecovery && window.royceApplyRecovery(\(json))"
+                    )
+                } else {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceNoRecovery && window.royceNoRecovery()"
+                    )
+                }
+            case "clearRecovery":
+                NativeProjectStore.shared.clearRecovery()
             case "masterStart":
                 NativeAudioEngine.shared.startMasterCapture()
             case "masterStop":
