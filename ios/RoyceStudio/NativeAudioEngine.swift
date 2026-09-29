@@ -13,6 +13,9 @@ final class NativeAudioEngine {
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
     private var instrumentGraphConnected = false
     private var compressionAmount: Float = 0.2
+    private let metronomePlayer = AVAudioPlayerNode()
+    private var metronomeAttached = false
+    private var metronomeVolume: Float = 0.22
 
     private let deckAPlayer = AVAudioPlayerNode()
     private let deckBPlayer = AVAudioPlayerNode()
@@ -109,6 +112,7 @@ final class NativeAudioEngine {
 
         vocalMixer.outputVolume = 0
         connectInstrumentGraphIfNeeded()
+        connectMetronomeIfNeeded()
         connectDJGraphIfNeeded()
         startIfNeeded()
     }
@@ -116,6 +120,7 @@ final class NativeAudioEngine {
     func startIfNeeded() {
         AudioSessionManager.shared.configure()
         connectInstrumentGraphIfNeeded()
+        connectMetronomeIfNeeded()
         connectDJGraphIfNeeded()
         guard !engine.isRunning else { return }
         do {
@@ -123,6 +128,83 @@ final class NativeAudioEngine {
         } catch {
             print("Royce native audio engine failed to start: \(error)")
         }
+    }
+
+    private func connectMetronomeIfNeeded() {
+        guard !metronomeAttached else { return }
+        connectInstrumentGraphIfNeeded()
+        engine.attach(metronomePlayer)
+        engine.connect(metronomePlayer, to: instrumentMixer, format: nil)
+        metronomePlayer.volume = metronomeVolume
+        metronomeAttached = true
+    }
+
+    func startMetronome(bpm: Double) {
+        startIfNeeded()
+        connectMetronomeIfNeeded()
+
+        let safeBPM = min(max(bpm, 40), 220)
+        let secondsPerBeat = 60.0 / safeBPM
+        let beatsPerBar = 4
+        let framesPerBeat = max(1, Int(sampleRate * secondsPerBeat))
+        let totalFrames = framesPerBeat * beatsPerBar
+
+        guard
+            let format = AVAudioFormat(
+                standardFormatWithSampleRate: sampleRate,
+                channels: 2
+            ),
+            let buffer = AVAudioPCMBuffer(
+                pcmFormat: format,
+                frameCapacity: AVAudioFrameCount(totalFrames)
+            )
+        else { return }
+
+        buffer.frameLength = AVAudioFrameCount(totalFrames)
+        guard let channels = buffer.floatChannelData else { return }
+
+        for channel in 0..<2 {
+            for frame in 0..<totalFrames {
+                channels[channel][frame] = 0
+            }
+        }
+
+        let clickFrames = max(1, Int(sampleRate * 0.045))
+        for beat in 0..<beatsPerBar {
+            let start = beat * framesPerBeat
+            let frequency = beat == 0 ? 1_250.0 : 850.0
+            let amplitude: Float = beat == 0 ? 0.42 : 0.28
+
+            for i in 0..<clickFrames where start + i < totalFrames {
+                let t = Double(i) / sampleRate
+                let progress = Double(i) / Double(clickFrames)
+                let envelope = Float(pow(max(0, 1 - progress), 4))
+                let sample = Float(sin(2 * Double.pi * frequency * t))
+                    * envelope
+                    * amplitude
+
+                channels[0][start + i] = sample
+                channels[1][start + i] = sample
+            }
+        }
+
+        metronomePlayer.stop()
+        metronomePlayer.scheduleBuffer(
+            buffer,
+            at: nil,
+            options: [.loops]
+        )
+        metronomePlayer.volume = metronomeVolume
+        metronomePlayer.play()
+    }
+
+    func stopMetronome() {
+        metronomePlayer.stop()
+    }
+
+    func setMetronomeVolume(_ value: Float) {
+        metronomeVolume = min(max(value, 0), 1)
+        metronomePlayer.volume = metronomeVolume
     }
 
     func setMixer(
