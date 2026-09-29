@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.7 iOS</title>
+<title>Royce Studio v1.8 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -36,7 +36,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.7 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.8 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -72,7 +72,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 
 <section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p>
 <div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div>
-<div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><span></span></div>
+<div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><button id="nativeTakeShare" style="display:none">Share / Export Take</button></div>
 <div class="grid2" style="margin-top:10px"><button id="nativeMonitorBtn">Native Monitor Off</button><div class="row"><label>Monitor level</label><input id="nativeMonitorLevel" type="range" min="0" max="1" step="0.01" value="0.85"></div></div>
 <p class="status" id="nativeMonitorStatus">Native monitoring is available in the iOS app. Use headphones to avoid feedback.</p>
 <audio id="player" controls style="width:100%;margin-top:12px"></audio></div></section>
@@ -173,6 +173,7 @@ $('#micBtn').onclick=async()=>{
    $('#recBtn').disabled=false;
    $('#micBtn').classList.add('on');
    $('#nativeTakePlay').style.display='block';
+   $('#nativeTakeShare').style.display='block';
    return;
  }
  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});$('#micStatus').textContent='Microphone ready.';$('#recBtn').disabled=false;$('#micBtn').classList.add('on')}catch(e){$('#micStatus').textContent='Mic permission failed: '+(e.message||e)}
@@ -201,6 +202,13 @@ $('#recBtn').onclick=()=>{
  }else{recorder.stop();$('#recBtn').textContent='Start Recording'}
 };
 $('#nativeTakePlay').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAudio.playLastTake)window.royceNativeAudio.playLastTake()};
+$('#nativeTakeShare').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.shareLastTake){
+   window.royceNativeAudio.shareLastTake();
+ }else{
+   $('#micStatus').textContent='Native export is available in the iOS app.';
+ }
+};
 let nativeMonitoring=false;
 $('#nativeMonitorBtn').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.monitor){
