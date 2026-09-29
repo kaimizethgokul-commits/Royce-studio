@@ -7,6 +7,7 @@ final class NativeAudioEngine {
     private let sampleRate: Double = 48_000
     private var activePlayers: [AVAudioPlayerNode] = []
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
+    private let vocalPitch = AVAudioUnitTimePitch()
     private let vocalReverb = AVAudioUnitReverb()
     private let vocalDelay = AVAudioUnitDelay()
     private let vocalMixer = AVAudioMixerNode()
@@ -15,6 +16,14 @@ final class NativeAudioEngine {
     private var recordingFile: AVAudioFile?
     private var lastRecordingURL: URL?
     private var isRecording = false
+    private var autoTuneEnabled = false
+    private var tuneKey = 0
+    private var tuneScale = "major"
+    private var tuneStrength: Float = 0.70
+    private var tuneRetuneMs: Float = 35
+    private var tuneHumanize: Float = 0.20
+    private var currentPitchCorrection: Float = 0
+    private var pitchTapInstalled = false
 
     private init() {
         vocalEQ.bands[0].filterType = .lowShelf
@@ -26,6 +35,10 @@ final class NativeAudioEngine {
         vocalEQ.bands[1].frequency = 6_500
         vocalEQ.bands[1].gain = 0
         vocalEQ.bands[1].bypass = false
+
+        vocalPitch.pitch = 0
+        vocalPitch.rate = 1
+        vocalPitch.overlap = 8
 
         vocalReverb.loadFactoryPreset(.mediumHall)
         vocalReverb.wetDryMix = 12
@@ -48,6 +61,155 @@ final class NativeAudioEngine {
         }
     }
 
+    func setAutoTune(
+        enabled: Bool,
+        key: String,
+        scale: String,
+        strength: Float,
+        retuneMs: Float,
+        humanize: Float
+    ) {
+        autoTuneEnabled = enabled
+        tuneKey = Self.pitchClass(for: key)
+        tuneScale = scale == "minor" ? "minor" : "major"
+        tuneStrength = min(max(strength, 0), 1)
+        tuneRetuneMs = min(max(retuneMs, 5), 120)
+        tuneHumanize = min(max(humanize, 0), 1)
+
+        requestMicrophoneAccess { [weak self] granted in
+            guard let self, granted else { return }
+            DispatchQueue.main.async {
+                self.connectVocalGraphIfNeeded()
+                if enabled {
+                    self.installPitchTrackingIfNeeded()
+                } else {
+                    self.currentPitchCorrection = 0
+                    self.vocalPitch.pitch = 0
+                }
+                self.startIfNeeded()
+            }
+        }
+    }
+
+    private static func pitchClass(for key: String) -> Int {
+        switch key {
+        case "C#": return 1
+        case "D": return 2
+        case "D#": return 3
+        case "E": return 4
+        case "F": return 5
+        case "F#": return 6
+        case "G": return 7
+        case "G#": return 8
+        case "A": return 9
+        case "A#": return 10
+        case "B": return 11
+        default: return 0
+        }
+    }
+
+    private func installPitchTrackingIfNeeded() {
+        guard !pitchTapInstalled else { return }
+        let format = vocalEQ.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { return }
+
+        vocalEQ.installTap(
+            onBus: 0,
+            bufferSize: 2_048,
+            format: format
+        ) { [weak self] buffer, _ in
+            guard let self, self.autoTuneEnabled,
+                  let frequency = self.detectPitch(buffer: buffer) else { return }
+
+            let exactMIDI = 69.0 + 12.0 * log2(frequency / 440.0)
+            let targetMIDI = self.nearestAllowedMIDI(to: exactMIDI)
+            let rawCents = Float((targetMIDI - exactMIDI) * 100.0)
+            let humanFactor = 1.0 - (self.tuneHumanize * 0.35)
+            let targetCents = rawCents * self.tuneStrength * humanFactor
+
+            let bufferSeconds = Float(buffer.frameLength) / Float(format.sampleRate)
+            let retuneSeconds = self.tuneRetuneMs / 1_000
+            let alpha = min(1, max(0.08, bufferSeconds / (bufferSeconds + retuneSeconds)))
+            let next = self.currentPitchCorrection + ((targetCents - self.currentPitchCorrection) * alpha)
+
+            self.currentPitchCorrection = min(max(next, -600), 600)
+            DispatchQueue.main.async {
+                self.vocalPitch.pitch = self.currentPitchCorrection
+            }
+        }
+        pitchTapInstalled = true
+    }
+
+    private func nearestAllowedMIDI(to value: Double) -> Double {
+        let major = [0, 2, 4, 5, 7, 9, 11]
+        let minor = [0, 2, 3, 5, 7, 8, 10]
+        let intervals = tuneScale == "minor" ? minor : major
+        let allowed = Set(intervals.map { ($0 + tuneKey) % 12 })
+
+        let center = Int(value.rounded())
+        var best = center
+        var bestDistance = Double.greatestFiniteMagnitude
+
+        for candidate in (center - 6)...(center + 6) {
+            let pitchClass = ((candidate % 12) + 12) % 12
+            guard allowed.contains(pitchClass) else { continue }
+            let distance = abs(Double(candidate) - value)
+            if distance < bestDistance {
+                bestDistance = distance
+                best = candidate
+            }
+        }
+        return Double(best)
+    }
+
+    private func detectPitch(buffer: AVAudioPCMBuffer) -> Double? {
+        guard let channel = buffer.floatChannelData?[0] else { return nil }
+        let count = Int(buffer.frameLength)
+        guard count > 256 else { return nil }
+
+        var rms: Float = 0
+        for i in 0..<count {
+            let x = channel[i]
+            rms += x * x
+        }
+        rms = sqrt(rms / Float(count))
+        guard rms > 0.012 else { return nil }
+
+        let sr = buffer.format.sampleRate
+        let minLag = max(1, Int(sr / 1_000))
+        let maxLag = min(count / 2, Int(sr / 80))
+        guard maxLag > minLag else { return nil }
+
+        var bestLag = 0
+        var bestScore: Float = -1
+
+        for lag in minLag...maxLag {
+            var correlation: Float = 0
+            var energyA: Float = 0
+            var energyB: Float = 0
+            var i = 0
+            while i + lag < count {
+                let a = channel[i]
+                let b = channel[i + lag]
+                correlation += a * b
+                energyA += a * a
+                energyB += b * b
+                i += 2
+            }
+            let denom = sqrt(max(energyA * energyB, 0.000_000_1))
+            let score = correlation / denom
+            if score > bestScore {
+                bestScore = score
+                bestLag = lag
+            }
+        }
+
+        guard bestLag > 0, bestScore > 0.55 else { return nil }
+        let frequency = sr / Double(bestLag)
+        guard frequency >= 80, frequency <= 1_000 else { return nil }
+        return frequency
+    }
+
     func prepareMicrophone() {
         requestMicrophoneAccess { [weak self] granted in
             guard let self, granted else { return }
@@ -67,7 +229,8 @@ final class NativeAudioEngine {
                 self.startIfNeeded()
 
                 let input = self.engine.inputNode
-                let format = input.outputFormat(forBus: 0)
+                let recordNode: AVAudioNode = self.vocalPitch
+                let format = recordNode.outputFormat(forBus: 0)
                 guard format.sampleRate > 0, format.channelCount > 0 else { return }
 
                 let directory = FileManager.default.urls(
@@ -86,7 +249,7 @@ final class NativeAudioEngine {
                     self.recordingFile = file
                     self.lastRecordingURL = url
 
-                    input.installTap(
+                    recordNode.installTap(
                         onBus: 0,
                         bufferSize: 1_024,
                         format: format
@@ -107,7 +270,7 @@ final class NativeAudioEngine {
 
     func stopRecording() {
         guard isRecording else { return }
-        engine.inputNode.removeTap(onBus: 0)
+        vocalPitch.removeTap(onBus: 0)
         isRecording = false
         recordingFile = nil
     }
@@ -201,12 +364,14 @@ final class NativeAudioEngine {
         guard format.sampleRate > 0, format.channelCount > 0 else { return }
 
         engine.attach(vocalEQ)
+        engine.attach(vocalPitch)
         engine.attach(vocalReverb)
         engine.attach(vocalDelay)
         engine.attach(vocalMixer)
 
         engine.connect(input, to: vocalEQ, format: format)
-        engine.connect(vocalEQ, to: vocalReverb, format: format)
+        engine.connect(vocalEQ, to: vocalPitch, format: format)
+        engine.connect(vocalPitch, to: vocalReverb, format: format)
         engine.connect(vocalReverb, to: vocalDelay, format: format)
         engine.connect(vocalDelay, to: vocalMixer, format: format)
         engine.connect(vocalMixer, to: engine.mainMixerNode, format: format)
