@@ -72,6 +72,31 @@ struct RoyceWebView: UIViewRepresentable {
                   retuneMs:retuneMs,
                   humanize:humanize
                 });
+              },
+              saveProject: function(name, json) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'saveProject',
+                  name:name || 'Untitled Royce Session',
+                  json:json
+                });
+              },
+              loadLastProject: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'loadLastProject'});
+              },
+              listProjects: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'listProjects'});
+              },
+              loadProject: function(name) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'loadProject',
+                  name:name
+                });
+              },
+              shareProject: function(name) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'shareProject',
+                  name:name
+                });
               }
             };
             """,
@@ -185,6 +210,50 @@ struct RoyceWebView: UIViewRepresentable {
                     retuneMs: Float(retuneMs),
                     humanize: Float(humanize)
                 )
+            case "saveProject":
+                let name = body["name"] as? String ?? "Untitled Royce Session"
+                let json = body["json"] as? String ?? "{}"
+                do {
+                    _ = try NativeProjectStore.shared.save(name: name, json: json)
+                    message.webView?.evaluateJavaScript(
+                        "window.royceNativeProjectSaved && window.royceNativeProjectSaved()"
+                    )
+                } catch {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceNativeProjectError && window.royceNativeProjectError('Save failed')"
+                    )
+                }
+            case "loadLastProject":
+                if let json = NativeProjectStore.shared.loadLast() {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceApplyNativeProject && window.royceApplyNativeProject(\(json))"
+                    )
+                }
+            case "listProjects":
+                let names = NativeProjectStore.shared.listProjects()
+                if let data = try? JSONSerialization.data(withJSONObject: names),
+                   let json = String(data: data, encoding: .utf8) {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceReceiveProjectList && window.royceReceiveProjectList(\(json))"
+                    )
+                }
+            case "loadProject":
+                if let name = body["name"] as? String,
+                   let json = NativeProjectStore.shared.load(named: name) {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceApplyNativeProject && window.royceApplyNativeProject(\(json))"
+                    )
+                }
+            case "shareProject":
+                guard let name = body["name"] as? String,
+                      let url = NativeProjectStore.shared.url(named: name),
+                      let webView = message.webView else { return }
+                let controller = UIActivityViewController(
+                    activityItems: [url],
+                    applicationActivities: nil
+                )
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(controller, animated: true)
             default:
                 break
             }
