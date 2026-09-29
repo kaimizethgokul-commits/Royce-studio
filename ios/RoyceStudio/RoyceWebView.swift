@@ -58,6 +58,17 @@ struct RoyceWebView: UIViewRepresentable {
               },
               playLastTake: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'playLastTake'});
+              },
+              autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'autoTune',
+                  enabled:!!enabled,
+                  key:key || 'C',
+                  scale:scale || 'major',
+                  strength:strength,
+                  retuneMs:retuneMs,
+                  humanize:humanize
+                });
               }
             };
             """,
@@ -147,6 +158,21 @@ struct RoyceWebView: UIViewRepresentable {
                 NativeAudioEngine.shared.stopRecording()
             case "playLastTake":
                 NativeAudioEngine.shared.playLastRecording()
+            case "autoTune":
+                let enabled = body["enabled"] as? Bool ?? false
+                let key = body["key"] as? String ?? "C"
+                let scale = body["scale"] as? String ?? "major"
+                let strength = body["strength"] as? Double ?? 0.70
+                let retuneMs = body["retuneMs"] as? Double ?? 35
+                let humanize = body["humanize"] as? Double ?? 0.20
+                NativeAudioEngine.shared.setAutoTune(
+                    enabled: enabled,
+                    key: key,
+                    scale: scale,
+                    strength: Float(strength),
+                    retuneMs: Float(retuneMs),
+                    humanize: Float(humanize)
+                )
             default:
                 break
             }
