@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.17 iOS</title>
+<title>Royce Studio v1.18 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.17 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.18 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -100,6 +100,11 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p>
 <div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div>
 <div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><button id="nativeTakeShare" style="display:none">Share / Export Take</button></div>
+<div class="strip" style="margin-top:10px">
+  <div class="audio-top"><b>Vocal Takes</b><button id="refreshTakes">Refresh</button></div>
+  <p class="status" id="takeStatus">Recorded iOS takes will appear here.</p>
+  <div id="takeList" class="audio-list"></div>
+</div>
 <div class="grid2" style="margin-top:10px"><button id="nativeMonitorBtn">Native Monitor Off</button><div class="row"><label>Monitor level</label><input id="nativeMonitorLevel" type="range" min="0" max="1" step="0.01" value="0.85"></div></div>
 <p class="status" id="nativeMonitorStatus">Native monitoring is available in the iOS app. Use headphones to avoid feedback.</p>
 <audio id="player" controls style="width:100%;margin-top:12px"></audio></div></section>
@@ -108,7 +113,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div>
 
 <script>
-let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false,nativeDecks={A:null,B:null},nativeDeckPlaying={A:false,B:false},metronomeEnabled=false,countInEnabled=false,countInTimer=null;
+let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[],timelineTimers=[],timelineClock=null,timelineRecording=false,nativeDecks={A:null,B:null},nativeDeckPlaying={A:false,B:false},metronomeEnabled=false,countInEnabled=false,countInTimer=null,selectedTakeId=null;
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
 const RS_MEDIA_DB='RoyceStudioMediaV1',RS_MEDIA_STORE='audio';
 function rsMediaDB(){
@@ -448,6 +453,9 @@ function collectRoyceProject(){
      comp:+q('#comp').value,
      limiter:+q('#limiter').value
    },
+   vocal:{
+     selectedTakeId:selectedTakeId||null
+   },
    tune:{
      enabled:q('#tuneToggle').classList.contains('on'),
      key:q('#key').value,
@@ -537,6 +545,7 @@ window.royceApplyNativeProject=async function(p){
  q('#cutoffVal').textContent=q('#cutoff').value+' Hz';q('#attackVal').textContent=q('#attack').value+'s';q('#releaseVal').textContent=q('#release').value+'s';
  q('#delayVal').textContent=Math.round(+q('#delay').value*100)+'%';q('#reverbVal').textContent=Math.round(+q('#reverb').value*100)+'%';q('#compVal').textContent=Math.round(+q('#comp').value*100)+'%';
  syncMixer();pushNativeMixer();pushNativeVocalFX();pushNativeTune();
+ refreshTakeLibrary();
  const missing=await restoreTimelineFromProject(p.timeline||[]);
  q('#projectStatus').textContent='Project loaded: '+(q('#projectName').value||'Royce Session')+(missing?' · '+missing+' media file(s) unavailable':'');
 
@@ -662,6 +671,7 @@ q('#micBtn').onclick=async()=>{
    q('#micBtn').classList.add('on');
    q('#nativeTakePlay').style.display='block';
    q('#nativeTakeShare').style.display='block';
+   refreshTakeLibrary();
    return;
  }
  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});q('#micStatus').textContent='Microphone ready.';q('#recBtn').disabled=false;q('#micBtn').classList.add('on')}catch(e){q('#micStatus').textContent='Mic permission failed: '+(e.message||e)}
@@ -678,6 +688,7 @@ q('#recBtn').onclick=()=>{
      window.royceNativeAudio.recordStop();
      q('#recBtn').textContent='Start Recording';
      q('#micStatus').textContent='Native take recorded.';
+     setTimeout(refreshTakeLibrary,250);
    }
    return;
  }
@@ -697,6 +708,81 @@ q('#nativeTakeShare').onclick=()=>{
    q('#micStatus').textContent='Native export is available in the iOS app.';
  }
 };
+
+function refreshTakeLibrary(){
+ if(nativeAudioAvailable()&&window.royceNativeAudio.listTakes){
+   window.royceNativeAudio.listTakes();
+ }else{
+   q('#takeStatus').textContent='The persistent take library is available in the iOS app.';
+ }
+}
+window.royceReceiveTakeLibrary=function(items){
+ const host=q('#takeList');
+ host.innerHTML='';
+ const list=Array.isArray(items)?items:[];
+ if(!list.length){
+   q('#takeStatus').textContent='No native vocal takes yet.';
+   return;
+ }
+ q('#takeStatus').textContent=list.length+' saved take'+(list.length===1?'':'s')+(selectedTakeId?' · best take selected':'');
+ list.forEach((t,i)=>{
+   const row=document.createElement('div');
+   row.className='audio-row';
+   if(selectedTakeId===t.id)row.style.outline='2px solid #86efac';
+
+   const top=document.createElement('div');
+   top.className='audio-top';
+   const title=document.createElement('b');
+   title.textContent='Take '+(list.length-i)+(selectedTakeId===t.id?' · BEST':'');
+   const badge=document.createElement('span');
+   badge.className='badge';
+   badge.textContent=(Number(t.duration||0)).toFixed(1)+'s';
+   top.append(title,badge);
+
+   const meta=document.createElement('p');
+   meta.className='status';
+   const date=t.date?new Date(Number(t.date)*1000):null;
+   const size=(Number(t.bytes||0)/(1024*1024)).toFixed(1);
+   meta.textContent=(date&&!Number.isNaN(date.getTime())?date.toLocaleString():'Recorded take')+' · '+size+' MB';
+
+   const actions=document.createElement('div');
+   actions.className='grid4';
+
+   const play=document.createElement('button');
+   play.textContent='Play';
+   play.onclick=()=>window.royceNativeAudio.playTake(t.id);
+
+   const select=document.createElement('button');
+   select.textContent=selectedTakeId===t.id?'Selected':'Select Best';
+   select.classList.toggle('on',selectedTakeId===t.id);
+   select.onclick=()=>{
+     selectedTakeId=t.id;
+     q('#micStatus').textContent='Best vocal take selected.';
+     window.royceReceiveTakeLibrary(list);
+     scheduleRecovery();
+   };
+
+   const share=document.createElement('button');
+   share.textContent='Share';
+   share.onclick=()=>window.royceNativeAudio.shareTake(t.id);
+
+   const del=document.createElement('button');
+   del.textContent='Delete';
+   del.onclick=()=>{
+     if(!confirm('Delete this vocal take?'))return;
+     if(selectedTakeId===t.id)selectedTakeId=null;
+     window.royceNativeAudio.deleteTake(t.id);
+     scheduleRecovery();
+   };
+
+   actions.append(play,select,share,del);
+   row.append(top,meta,actions);
+   host.appendChild(row);
+ });
+};
+q('#refreshTakes').onclick=refreshTakeLibrary;
+setTimeout(refreshTakeLibrary,1100);
+
 
 let masterCapturing=false;
 q('#masterRecord').onclick=()=>{
