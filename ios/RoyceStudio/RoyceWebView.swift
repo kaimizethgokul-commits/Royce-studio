@@ -133,6 +133,12 @@ struct RoyceWebView: UIViewRepresentable {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'mediaLoop', id:id, loop:!!loop
                 });
+              },
+              mixer: function(values) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'mixer',
+                  values:values || {}
+                });
               }
             };
             """,
@@ -358,6 +364,19 @@ struct RoyceWebView: UIViewRepresentable {
                     let loop = body["loop"] as? Bool ?? false
                     NativeAudioEngine.shared.setMediaLoop(id: id, loop: loop)
                 }
+            case "mixer":
+                let values = body["values"] as? [String: Any] ?? [:]
+                NativeAudioEngine.shared.setMixer(
+                    instrumentVolume: Float(values["instrumentVolume"] as? Double ?? 0.8),
+                    instrumentPan: Float(values["instrumentPan"] as? Double ?? 0),
+                    instrumentLowEQ: Float(values["instrumentLowEQ"] as? Double ?? 0),
+                    instrumentHighEQ: Float(values["instrumentHighEQ"] as? Double ?? 0),
+                    vocalVolume: Float(values["vocalVolume"] as? Double ?? 0.85),
+                    vocalPan: Float(values["vocalPan"] as? Double ?? 0),
+                    masterVolume: Float(values["masterVolume"] as? Double ?? 0.9),
+                    compression: Float(values["compression"] as? Double ?? 0.2),
+                    limiterCeiling: Float(values["limiterCeiling"] as? Double ?? -1)
+                )
             default:
                 break
             }
