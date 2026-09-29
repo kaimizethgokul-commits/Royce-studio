@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.19 iOS</title>
+<title>Royce Studio v1.20 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.19 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.20 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -92,14 +92,14 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div></div></section>
 
 <section id="master" class="panel"><div class="card"><h2>Master Capture</h2>
-<p class="status" id="masterStatus">Capture the native iOS studio output, then play or share the result.</p>
+<p class="status" id="masterStatus">Capture the native iOS studio output, then export a production-ready 24-bit WAV.</p>
 <div class="grid2"><button id="masterRecord" class="primary">Start Master</button><button id="masterPlay">Play Last Master</button></div>
-<div class="grid2" style="margin-top:10px"><button id="masterShare">Share Master</button><button id="masterStop">Stop Master</button></div>
+<div class="grid2" style="margin-top:10px"><button id="masterShare">Share Master WAV</button><button id="masterStop">Stop Master</button></div>
 </div></section>
 
 <section id="voice" class="panel"><div class="card"><h2>Voice Recorder</h2><p class="status" id="micStatus">Mic not armed.</p>
 <div class="grid2"><button id="micBtn">Arm Microphone</button><button id="recBtn" disabled>Start Recording</button></div>
-<div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><button id="nativeTakeShare" style="display:none">Share / Export Take</button></div>
+<div class="grid2" style="margin-top:10px"><button id="nativeTakePlay" style="display:none">Play Last Native Take</button><button id="nativeTakeShare" style="display:none">Share Last Take WAV</button></div>
 <div class="strip" style="margin-top:10px">
   <div class="audio-top"><b>Vocal Takes</b><button id="refreshTakes">Refresh</button></div>
   <p class="status" id="takeStatus">Recorded iOS takes will appear here.</p>
@@ -440,7 +440,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.19-ios',
+   version:'1.20-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -730,6 +730,7 @@ q('#recBtn').onclick=()=>{
 q('#nativeTakePlay').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAudio.playLastTake)window.royceNativeAudio.playLastTake()};
 q('#nativeTakeShare').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.shareLastTake){
+   q('#micStatus').textContent='Preparing 24-bit WAV…';
    window.royceNativeAudio.shareLastTake();
  }else{
    q('#micStatus').textContent='Native export is available in the iOS app.';
@@ -791,8 +792,11 @@ window.royceReceiveTakeLibrary=function(items){
    };
 
    const share=document.createElement('button');
-   share.textContent='Share';
-   share.onclick=()=>window.royceNativeAudio.shareTake(t.id);
+   share.textContent='Share WAV';
+   share.onclick=()=>{
+     q('#takeStatus').textContent='Preparing 24-bit WAV…';
+     window.royceNativeAudio.shareTake(t.id);
+   };
 
    const del=document.createElement('button');
    del.textContent='Delete';
@@ -854,6 +858,15 @@ q('#compStartBar').oninput=e=>{
  scheduleRecovery();
 };
 
+window.royceWAVExportFailed=function(kind){
+ if(kind==='master'){
+   q('#masterStatus').textContent='WAV export failed. Your original master recording is still safe.';
+ }else{
+   q('#micStatus').textContent='WAV export failed. Your original vocal take is still safe.';
+   q('#takeStatus').textContent='WAV export failed. The recorded take was not deleted.';
+ }
+};
+
 let masterCapturing=false;
 q('#masterRecord').onclick=()=>{
  if(!nativeAudioAvailable()||!window.royceNativeAudio.masterStart){
@@ -882,6 +895,7 @@ q('#masterPlay').onclick=()=>{
 };
 q('#masterShare').onclick=()=>{
  if(nativeAudioAvailable()&&window.royceNativeAudio.masterShare){
+   q('#masterStatus').textContent='Preparing 24-bit WAV…';
    window.royceNativeAudio.masterShare();
  }else q('#masterStatus').textContent='Native master sharing requires the iOS app.';
 };
