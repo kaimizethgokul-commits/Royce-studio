@@ -6,8 +6,32 @@ final class NativeAudioEngine {
     private let engine = AVAudioEngine()
     private let sampleRate: Double = 48_000
     private var activePlayers: [AVAudioPlayerNode] = []
+    private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
+    private let vocalReverb = AVAudioUnitReverb()
+    private let vocalDelay = AVAudioUnitDelay()
+    private let vocalMixer = AVAudioMixerNode()
+    private var vocalGraphConnected = false
+    private var monitoringEnabled = false
 
     private init() {
+        vocalEQ.bands[0].filterType = .lowShelf
+        vocalEQ.bands[0].frequency = 180
+        vocalEQ.bands[0].gain = 0
+        vocalEQ.bands[0].bypass = false
+
+        vocalEQ.bands[1].filterType = .highShelf
+        vocalEQ.bands[1].frequency = 6_500
+        vocalEQ.bands[1].gain = 0
+        vocalEQ.bands[1].bypass = false
+
+        vocalReverb.loadFactoryPreset(.mediumHall)
+        vocalReverb.wetDryMix = 12
+
+        vocalDelay.delayTime = 0.22
+        vocalDelay.feedback = 18
+        vocalDelay.wetDryMix = 10
+
+        vocalMixer.outputVolume = 0
         startIfNeeded()
     }
 
@@ -19,6 +43,83 @@ final class NativeAudioEngine {
         } catch {
             print("Royce native audio engine failed to start: \(error)")
         }
+    }
+
+    func setMonitoring(_ enabled: Bool) {
+        requestMicrophoneAccess { [weak self] granted in
+            guard let self else { return }
+            guard granted else {
+                self.monitoringEnabled = false
+                self.vocalMixer.outputVolume = 0
+                return
+            }
+            DispatchQueue.main.async {
+                self.connectVocalGraphIfNeeded()
+                self.monitoringEnabled = enabled
+                self.vocalMixer.outputVolume = enabled ? max(self.vocalMixer.outputVolume, 0.85) : 0
+                self.startIfNeeded()
+            }
+        }
+    }
+
+    func setVocalFX(
+        volume: Float,
+        lowEQ: Float,
+        highEQ: Float,
+        reverb: Float,
+        delay: Float
+    ) {
+        let safeVolume = min(max(volume, 0), 1)
+        let safeLow = min(max(lowEQ, -12), 12)
+        let safeHigh = min(max(highEQ, -12), 12)
+        let safeReverb = min(max(reverb, 0), 1)
+        let safeDelay = min(max(delay, 0), 1)
+
+        vocalEQ.bands[0].gain = safeLow
+        vocalEQ.bands[1].gain = safeHigh
+        vocalReverb.wetDryMix = safeReverb * 100
+        vocalDelay.wetDryMix = safeDelay * 100
+
+        if monitoringEnabled {
+            vocalMixer.outputVolume = safeVolume
+        }
+    }
+
+    private func requestMicrophoneAccess(_ completion: @escaping (Bool) -> Void) {
+        let session = AVAudioSession.sharedInstance()
+        switch session.recordPermission {
+        case .granted:
+            completion(true)
+        case .denied:
+            completion(false)
+        case .undetermined:
+            session.requestRecordPermission { granted in
+                completion(granted)
+            }
+        @unknown default:
+            completion(false)
+        }
+    }
+
+    private func connectVocalGraphIfNeeded() {
+        guard !vocalGraphConnected else { return }
+
+        let input = engine.inputNode
+        let format = input.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { return }
+
+        engine.attach(vocalEQ)
+        engine.attach(vocalReverb)
+        engine.attach(vocalDelay)
+        engine.attach(vocalMixer)
+
+        engine.connect(input, to: vocalEQ, format: format)
+        engine.connect(vocalEQ, to: vocalReverb, format: format)
+        engine.connect(vocalReverb, to: vocalDelay, format: format)
+        engine.connect(vocalDelay, to: vocalMixer, format: format)
+        engine.connect(vocalMixer, to: engine.mainMixerNode, format: format)
+
+        vocalGraphConnected = true
     }
 
     func playDrum(_ name: String) {
