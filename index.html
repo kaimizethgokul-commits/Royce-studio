@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.3.2</title>
+<title>Royce Studio v1.4 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -36,7 +36,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.3.2</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.4 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -79,12 +79,22 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function impulse(c){const b=c.createBuffer(2,c.sampleRate*1.4,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4)}return b}
+function nativeAudioAvailable(){return !!window.royceNativeAudio}
+function nativeDrum(name){if(nativeAudioAvailable()){window.royceNativeAudio.drum(name);return true}return false}
+function nativeTone(freq,type='sine',dur=.45,gain=.16){if(nativeAudioAvailable()){window.royceNativeAudio.tone(freq,type,dur,gain);return true}return false}
 async function audio(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();compressor=ctx.createDynamicsCompressor();instBus=ctx.createGain();vocBus=ctx.createGain();delayNode=ctx.createDelay(1);delayNode.delayTime.value=.25;delayWet=ctx.createGain();reverbNode=ctx.createConvolver();reverbNode.buffer=impulse(ctx);reverbWet=ctx.createGain();instBus.connect(compressor);vocBus.connect(compressor);compressor.connect(master);instBus.connect(delayNode);delayNode.connect(delayWet).connect(master);instBus.connect(reverbNode);reverbNode.connect(reverbWet).connect(master);master.connect(ctx.destination);syncMixer()}if(ctx.state!=='running')await ctx.resume();$('#audioBtn').textContent='Audio Ready';$('#audioBtn').classList.add('on');$('#audioStatus')&&($('#audioStatus').textContent='Audio engine running.');return ctx}catch(e){$('#audioStatus')&&($('#audioStatus').textContent='Audio error: '+(e.message||e));return null}}
 function syncMixer(){if(!ctx)return;master.gain.value=+$('#masterVol').value;instBus.gain.value=+$('#instVol').value;vocBus.gain.value=+$('#vocVol').value;delayWet.gain.value=+$('#delay').value;reverbWet.gain.value=+$('#reverb').value;compressor.threshold.value=-10-(+$('#comp').value*30);compressor.ratio.value=1.5+(+$('#comp').value*8)}
-$('#audioBtn').onclick=async()=>{const c=await audio();if(!c)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=660;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.15,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.16)};
-function tone(freq,dur=.45,type='sine',gain=.16,out=instBus,filterHz=12000){const c=ctx;if(!c||c.state!=='running')return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter();o.type=type;o.frequency.setValueAtTime(freq,t);f.type='lowpass';f.frequency.value=filterHz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(f).connect(g).connect(out);o.start(t);o.stop(t+dur+.05)}
+$('#audioBtn').onclick=async()=>{
+ if(nativeTone(660,'sine',.16,.15)){
+   $('#audioBtn').textContent='iOS Audio Ready';$('#audioBtn').classList.add('on');
+   $('#audioStatus')&&($('#audioStatus').textContent='Native iOS audio engine running.');
+   return;
+ }
+ const c=await audio();if(!c)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.frequency.value=660;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.15,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.16)
+};
+function tone(freq,dur=.45,type='sine',gain=.16,out=instBus,filterHz=12000){if(nativeTone(freq,type,dur,gain))return;const c=ctx;if(!c||c.state!=='running')return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter();o.type=type;o.frequency.setValueAtTime(freq,t);f.type='lowpass';f.frequency.value=filterHz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(f).connect(g).connect(out);o.start(t);o.stop(t+dur+.05)}
 function drum(name){const c=ctx;if(!c)return;const t=c.currentTime;if(name==='hat'||name==='crash'){const len=c.sampleRate*(name==='crash'?.5:.08),b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type='highpass';f.frequency.value=name==='crash'?3500:6500;g.gain.setValueAtTime(name==='crash'?.12:.08,t);g.gain.exponentialRampToValueAtTime(.001,t+(name==='crash'?.5:.08));s.connect(f).connect(g).connect(instBus);s.start();return}const map={kick:[130,48,.22,'sine'],snare:[190,190,.11,'triangle'],clap:[1100,900,.09,'square'],tom:[120,80,.25,'sine'],rim:[700,700,.06,'square'],perc:[420,300,.12,'triangle']},m=map[name]||map.kick,o=c.createOscillator(),g=c.createGain();o.type=m[3];o.frequency.setValueAtTime(m[0],t);o.frequency.exponentialRampToValueAtTime(m[1],t+m[2]);g.gain.setValueAtTime(.22,t);g.gain.exponentialRampToValueAtTime(.001,t+m[2]);o.connect(g).connect(instBus);o.start();o.stop(t+m[2]+.04)}
-$$('.pad').forEach(p=>p.onclick=async()=>{if(await audio())drum(p.dataset.drum)});
+$('.pad').forEach(p=>p.onclick=async()=>{if(nativeDrum(p.dataset.drum))return;if(await audio())drum(p.dataset.drum)});
 const notes=[261.63,293.66,329.63,349.23,392,440,493.88],names=['C','D','E','F','G','A','B'];
 function buildKeys(id,fn){const g=$(id);g.innerHTML='';notes.forEach((f,i)=>{const b=document.createElement('button');b.className='key';b.textContent=names[i];b.onclick=async()=>{if(await audio())fn(f)};g.appendChild(b)})}
 buildKeys('#keysGrid',f=>tone(f,.65,$('#keyType').value,.13));
