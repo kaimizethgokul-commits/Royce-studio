@@ -11,7 +11,6 @@ final class NativeAudioEngine {
     private var mediaLoop: [String: Bool] = [:]
     private let instrumentMixer = AVAudioMixerNode()
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
-    private let instrumentCompressor = AVAudioUnitDynamicsProcessor()
     private var instrumentGraphConnected = false
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
     private let vocalPitch = AVAudioUnitTimePitch()
@@ -55,12 +54,6 @@ final class NativeAudioEngine {
         instrumentEQ.bands[1].frequency = 6_500
         instrumentEQ.bands[1].gain = 0
         instrumentEQ.bands[1].bypass = false
-
-        instrumentCompressor.threshold = -18
-        instrumentCompressor.headRoom = 5
-        instrumentCompressor.headRoom = 5
-        instrumentCompressor.attackTime = 0.01
-        instrumentCompressor.releaseTime = 0.12
 
         vocalEQ.bands[0].filterType = .lowShelf
         vocalEQ.bands[0].frequency = 180
@@ -116,12 +109,7 @@ final class NativeAudioEngine {
         instrumentMixer.pan = min(max(instrumentPan, -1), 1)
         instrumentEQ.bands[0].gain = min(max(instrumentLowEQ, -12), 12)
         instrumentEQ.bands[1].gain = min(max(instrumentHighEQ, -12), 12)
-
-        let amount = min(max(compression, 0), 1)
-        instrumentCompressor.threshold = -10.0 - (amount * 30.0)
-        instrumentCompressor.headRoom = 8.0 - (amount * 6.0)
-        instrumentCompressor.attackTime = 0.008
-        instrumentCompressor.releaseTime = 0.12
+        _ = compression
 
         vocalFader = min(max(vocalVolume, 0), 1)
         vocalMixer.pan = min(max(vocalPan, -1), 1)
@@ -142,11 +130,9 @@ final class NativeAudioEngine {
 
         engine.attach(instrumentMixer)
         engine.attach(instrumentEQ)
-        engine.attach(instrumentCompressor)
 
         engine.connect(instrumentMixer, to: instrumentEQ, format: nil)
-        engine.connect(instrumentEQ, to: instrumentCompressor, format: nil)
-        engine.connect(instrumentCompressor, to: engine.mainMixerNode, format: nil)
+        engine.connect(instrumentEQ, to: engine.mainMixerNode, format: nil)
 
         instrumentGraphConnected = true
     }
