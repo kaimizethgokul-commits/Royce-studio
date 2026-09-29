@@ -63,6 +63,27 @@ struct RoyceWebView: UIViewRepresentable {
               shareLastTake: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'shareLastTake'});
               },
+              listTakes: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'listTakes'});
+              },
+              playTake: function(id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'playTake',
+                  id:id
+                });
+              },
+              shareTake: function(id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'shareTake',
+                  id:id
+                });
+              },
+              deleteTake: function(id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'deleteTake',
+                  id:id
+                });
+              },
               autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'autoTune',
@@ -325,6 +346,39 @@ struct RoyceWebView: UIViewRepresentable {
                 )
                 topViewController(from: webView.window?.rootViewController)?
                     .present(controller, animated: true)
+            case "listTakes":
+                let items = NativeAudioEngine.shared.takeLibrary()
+                if let data = try? JSONSerialization.data(withJSONObject: items),
+                   let json = String(data: data, encoding: .utf8) {
+                    message.webView?.evaluateJavaScript(
+                        "window.royceReceiveTakeLibrary && window.royceReceiveTakeLibrary(\(json))"
+                    )
+                }
+            case "playTake":
+                if let id = body["id"] as? String {
+                    NativeAudioEngine.shared.playTake(id: id)
+                }
+            case "shareTake":
+                guard let id = body["id"] as? String,
+                      let url = NativeAudioEngine.shared.takeURL(id: id),
+                      let webView = message.webView else { return }
+                let controller = UIActivityViewController(
+                    activityItems: [url],
+                    applicationActivities: nil
+                )
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(controller, animated: true)
+            case "deleteTake":
+                if let id = body["id"] as? String {
+                    _ = NativeAudioEngine.shared.deleteTake(id: id)
+                    let items = NativeAudioEngine.shared.takeLibrary()
+                    if let data = try? JSONSerialization.data(withJSONObject: items),
+                       let json = String(data: data, encoding: .utf8) {
+                        message.webView?.evaluateJavaScript(
+                            "window.royceReceiveTakeLibrary && window.royceReceiveTakeLibrary(\(json))"
+                        )
+                    }
+                }
             case "autoTune":
                 let enabled = body["enabled"] as? Bool ?? false
                 let key = body["key"] as? String ?? "C"
