@@ -30,6 +30,22 @@ struct RoyceWebView: UIViewRepresentable {
                   duration:duration || 0.55,
                   gain:gain || 0.16
                 });
+              },
+              monitor: function(enabled) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'monitor',
+                  enabled:!!enabled
+                });
+              },
+              vocalFX: function(volume, lowEQ, highEQ, reverb, delay) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'vocalFX',
+                  volume:volume,
+                  lowEQ:lowEQ,
+                  highEQ:highEQ,
+                  reverb:reverb,
+                  delay:delay
+                });
               }
             };
             """,
@@ -94,6 +110,22 @@ struct RoyceWebView: UIViewRepresentable {
                     waveform: waveform,
                     duration: duration,
                     gain: gain
+                )
+            case "monitor":
+                let enabled = body["enabled"] as? Bool ?? false
+                NativeAudioEngine.shared.setMonitoring(enabled)
+            case "vocalFX":
+                let volume = body["volume"] as? Double ?? 0.85
+                let lowEQ = body["lowEQ"] as? Double ?? 0
+                let highEQ = body["highEQ"] as? Double ?? 0
+                let reverb = body["reverb"] as? Double ?? 0.12
+                let delay = body["delay"] as? Double ?? 0.10
+                NativeAudioEngine.shared.setVocalFX(
+                    volume: Float(volume),
+                    lowEQ: Float(lowEQ),
+                    highEQ: Float(highEQ),
+                    reverb: Float(reverb),
+                    delay: Float(delay)
                 )
             default:
                 break
