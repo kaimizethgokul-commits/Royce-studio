@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.9 iOS</title>
+<title>Royce Studio v1.10 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.9 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.10 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -93,7 +93,33 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 
 <script>
 let ctx=null,master=null,instBus=null,vocBus=null,delayNode=null,delayWet=null,reverbNode=null,reverbWet=null,compressor=null,stream=null,recorder=null,chunks=[],deckTimers={A:null,B:null},audioTracks=[];
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s),$=s=>[...document.querySelectorAll(s)];
+const RS_MEDIA_DB='RoyceStudioMediaV1',RS_MEDIA_STORE='audio';
+function rsMediaDB(){
+ return new Promise((resolve,reject)=>{
+   const req=indexedDB.open(RS_MEDIA_DB,1);
+   req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(RS_MEDIA_STORE))db.createObjectStore(RS_MEDIA_STORE,{keyPath:'id'})};
+   req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+ });
+}
+async function rsStoreAudio(id,file){
+ const db=await rsMediaDB();
+ return new Promise((resolve,reject)=>{
+   const tx=db.transaction(RS_MEDIA_STORE,'readwrite');
+   tx.objectStore(RS_MEDIA_STORE).put({id,name:file.name,type:file.type,blob:file,updatedAt:Date.now()});
+   tx.oncomplete=()=>{db.close();resolve(true)};tx.onerror=()=>{db.close();reject(tx.error)};
+ });
+}
+async function rsLoadAudio(id){
+ const db=await rsMediaDB();
+ return new Promise((resolve,reject)=>{
+   const tx=db.transaction(RS_MEDIA_STORE,'readonly');
+   const req=tx.objectStore(RS_MEDIA_STORE).get(id);
+   req.onsuccess=()=>{const v=req.result;db.close();resolve(v||null)};req.onerror=()=>{db.close();reject(req.error)};
+ });
+}
+function rsMediaId(){return (crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)))}
+
 function impulse(c){const b=c.createBuffer(2,c.sampleRate*1.4,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.4)}return b}
 function nativeAudioAvailable(){return !!window.royceNativeAudio}
 function nativeDrum(name){if(nativeAudioAvailable()){window.royceNativeAudio.drum(name);return true}return false}
@@ -171,12 +197,21 @@ function renderAudioTracks(){
 function paintBars(){
  $$('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('on',audioTracks.some(t=>t.bar===i+1)));
 }
-$('#importTracks').onchange=e=>{[...(e.target.files||[])].forEach(f=>audioTracks.push({name:f.name,url:URL.createObjectURL(f),audio:new Audio(),loop:false,bar:1}));renderAudioTracks();paintBars();e.target.value=''};
+$('#importTracks').onchange=async e=>{
+ const files=[...(e.target.files||[])];
+ for(const f of files){
+   const id=rsMediaId();
+   try{await rsStoreAudio(id,f)}catch(err){console.error('Royce media store failed',err)}
+   const a=new Audio();a.volume=1;
+   audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1});
+ }
+ renderAudioTracks();paintBars();e.target.value='';
+};
 $('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{t.audio.pause();t.audio.currentTime=0});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
 
 function collectRoyceProject(){
  return {
-   version:'1.9-ios',
+   version:'1.10-ios',
    name:($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    instruments:{
@@ -212,6 +247,7 @@ function collectRoyceProject(){
      humanize:+$('#human').value
    },
    timeline:audioTracks.map(t=>({
+     id:t.id||null,
      name:t.name,
      loop:!!t.loop,
      bar:+t.bar,
@@ -219,10 +255,33 @@ function collectRoyceProject(){
    }))
  };
 }
+async function restoreTimelineFromProject(items){
+ audioTracks.forEach(t=>{try{t.audio?.pause()}catch(e){};try{if(t.url)URL.revokeObjectURL(t.url)}catch(e){}});
+ audioTracks=[];
+ let missing=0;
+ for(const meta of (items||[])){
+   if(!meta?.id){missing++;continue}
+   try{
+     const stored=await rsLoadAudio(meta.id);
+     if(!stored?.blob){missing++;continue}
+     const a=new Audio();a.volume=meta.volume??1;
+     audioTracks.push({
+       id:meta.id,
+       name:meta.name||stored.name||'Imported Audio',
+       url:URL.createObjectURL(stored.blob),
+       audio:a,
+       loop:!!meta.loop,
+       bar:+meta.bar||1
+     });
+   }catch(e){missing++}
+ }
+ renderAudioTracks();paintBars();
+ return missing;
+}
 function applyValue(id,value){
  const el=$('#'+id);if(el&&value!==undefined&&value!==null)el.value=value;
 }
-window.royceApplyNativeProject=function(p){
+window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');
  const i=p.instruments||{},m=p.mixer||{},t=p.tune||{};
@@ -235,7 +294,9 @@ window.royceApplyNativeProject=function(p){
  $('#cutoffVal').textContent=$('#cutoff').value+' Hz';$('#attackVal').textContent=$('#attack').value+'s';$('#releaseVal').textContent=$('#release').value+'s';
  $('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';
  syncMixer();pushNativeVocalFX();pushNativeTune();
- $('#projectStatus').textContent='Project loaded: '+($('#projectName').value||'Royce Session');
+ const missing=await restoreTimelineFromProject(p.timeline||[]);
+ $('#projectStatus').textContent='Project loaded: '+($('#projectName').value||'Royce Session')+(missing?' · '+missing+' media file(s) unavailable':'');
+
 };
 window.royceNativeProjectSaved=function(){
  $('#projectStatus').textContent='Project saved on iPhone.';
