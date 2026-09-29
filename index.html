@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.8 iOS</title>
+<title>Royce Studio v1.9 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -32,14 +32,25 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 .file-btn input{display:none}.timeline-ruler{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:12px}.bar{height:44px;border-radius:9px;border:1px solid #303041;background:#111119;display:grid;place-items:center;color:#777;font-size:10px}.bar.on{background:linear-gradient(135deg,#5639bd,#8b5cf6);color:#fff}
 .deck-file{margin:10px 0}.deck audio{width:100%;margin:8px 0}
 @media(max-width:620px){.audio-actions{grid-template-columns:1fr 1fr}.timeline-ruler{grid-template-columns:repeat(4,1fr)}}
+
+.project-list{display:grid;gap:8px;margin-top:12px}.project-item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:#0e0e14;border:1px solid #2a2a38;border-radius:14px;padding:10px}.project-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:620px){.project-item{grid-template-columns:1fr 1fr}.project-item b{grid-column:1/-1}}
 </style>
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.8 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.9 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="tabs">
-<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
+<button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
+
+<section id="project" class="panel"><div class="card"><h2>Project</h2>
+<div class="row"><label>Project Name</label><input id="projectName" type="text" value="Untitled Royce Session" maxlength="80"></div>
+<div class="grid2"><button id="saveNativeProject" class="primary">Save Project</button><button id="loadLastNativeProject">Load Last Project</button></div>
+<div class="grid2" style="margin-top:10px"><button id="refreshNativeProjects">Refresh Projects</button><button id="shareCurrentProject">Share Project</button></div>
+<p class="status" id="projectStatus">Native project saving is available in the iOS app.</p>
+<div id="nativeProjectList" class="project-list"></div>
+</div></section>
 
 <section id="drums" class="panel active"><div class="card"><h2>Drum Machine</h2><p class="status" id="audioStatus">Tap Enable Audio once, then play.</p><div class="pads">
 <button class="pad" data-drum="kick">KICK</button><button class="pad" data-drum="snare">SNARE</button><button class="pad" data-drum="hat">HI‑HAT</button><button class="pad" data-drum="clap">CLAP</button><button class="pad" data-drum="tom">TOM</button><button class="pad" data-drum="rim">RIM</button><button class="pad" data-drum="perc">PERC</button><button class="pad" data-drum="crash">CRASH</button>
@@ -162,7 +173,115 @@ function paintBars(){
 }
 $('#importTracks').onchange=e=>{[...(e.target.files||[])].forEach(f=>audioTracks.push({name:f.name,url:URL.createObjectURL(f),audio:new Audio(),loop:false,bar:1}));renderAudioTracks();paintBars();e.target.value=''};
 $('#stopAllAudio').onclick=()=>{audioTracks.forEach(t=>{t.audio.pause();t.audio.currentTime=0});['A','B'].forEach(d=>{const a=$('#deck'+d+'Audio');if(a){a.pause();a.currentTime=0;$('#deck'+d+'Play').textContent='▶'}})};
-$$('.tab').forEach(t=>t.onclick=()=>{$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
+
+function collectRoyceProject(){
+ return {
+   version:'1.9-ios',
+   name:($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
+   savedAt:new Date().toISOString(),
+   instruments:{
+     keyType:$('#keyType').value,
+     bassType:$('#bassType').value,
+     bassRelease:+$('#bassRelease').value,
+     oscType:$('#oscType').value,
+     cutoff:+$('#cutoff').value,
+     attack:+$('#attack').value,
+     release:+$('#release').value
+   },
+   mixer:{
+     masterVol:+$('#masterVol').value,
+     instVol:+$('#instVol').value,
+     vocVol:+$('#vocVol').value,
+     instPan:+$('#instPan').value,
+     vocPan:+$('#vocPan').value,
+     instLow:+$('#instLow').value,
+     instHigh:+$('#instHigh').value,
+     vocLow:+$('#vocLow').value,
+     vocHigh:+$('#vocHigh').value,
+     delay:+$('#delay').value,
+     reverb:+$('#reverb').value,
+     comp:+$('#comp').value,
+     limiter:+$('#limiter').value
+   },
+   tune:{
+     enabled:$('#tuneToggle').classList.contains('on'),
+     key:$('#key').value,
+     scale:$('#scale').value,
+     strength:+$('#strength').value,
+     speed:+$('#speed').value,
+     humanize:+$('#human').value
+   },
+   timeline:audioTracks.map(t=>({
+     name:t.name,
+     loop:!!t.loop,
+     bar:+t.bar,
+     volume:t.audio?.volume??1
+   }))
+ };
+}
+function applyValue(id,value){
+ const el=$('#'+id);if(el&&value!==undefined&&value!==null)el.value=value;
+}
+window.royceApplyNativeProject=function(p){
+ if(!p||typeof p!=='object')return;
+ applyValue('projectName',p.name||'Untitled Royce Session');
+ const i=p.instruments||{},m=p.mixer||{},t=p.tune||{};
+ applyValue('keyType',i.keyType);applyValue('bassType',i.bassType);applyValue('bassRelease',i.bassRelease);
+ applyValue('oscType',i.oscType);applyValue('cutoff',i.cutoff);applyValue('attack',i.attack);applyValue('release',i.release);
+ ['masterVol','instVol','vocVol','instPan','vocPan','instLow','instHigh','vocLow','vocHigh','delay','reverb','comp','limiter'].forEach(id=>applyValue(id,m[id]));
+ applyValue('key',t.key);applyValue('scale',t.scale);applyValue('strength',t.strength);applyValue('speed',t.speed);applyValue('human',t.human);
+ const tuneOn=!!t.enabled;$('#tuneToggle').classList.toggle('on',tuneOn);$('#tuneToggle').textContent=tuneOn?'On':'Off';
+ $('#strengthVal').textContent=$('#strength').value+'%';$('#speedVal').textContent=$('#speed').value+' ms';$('#humanVal').textContent=$('#human').value+'%';
+ $('#cutoffVal').textContent=$('#cutoff').value+' Hz';$('#attackVal').textContent=$('#attack').value+'s';$('#releaseVal').textContent=$('#release').value+'s';
+ $('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';
+ syncMixer();pushNativeVocalFX();pushNativeTune();
+ $('#projectStatus').textContent='Project loaded: '+($('#projectName').value||'Royce Session');
+};
+window.royceNativeProjectSaved=function(){
+ $('#projectStatus').textContent='Project saved on iPhone.';
+ if(nativeAudioAvailable()&&window.royceNativeAudio.listProjects)window.royceNativeAudio.listProjects();
+};
+window.royceNativeProjectError=function(message){$('#projectStatus').textContent=message||'Project action failed.'};
+window.royceReceiveProjectList=function(names){
+ const host=$('#nativeProjectList');host.innerHTML='';
+ if(!names||!names.length){host.innerHTML='<p class="status">No native projects saved yet.</p>';return}
+ names.forEach(name=>{
+   const row=document.createElement('div');row.className='project-item';
+   const label=document.createElement('b');label.textContent=name;
+   const load=document.createElement('button');load.textContent='Load';load.onclick=()=>window.royceNativeAudio.loadProject(name);
+   const share=document.createElement('button');share.textContent='Share';share.onclick=()=>window.royceNativeAudio.shareProject(name);
+   row.append(label,load,share);host.appendChild(row);
+ });
+};
+$('#saveNativeProject').onclick=()=>{
+ const project=collectRoyceProject();
+ if(nativeAudioAvailable()&&window.royceNativeAudio.saveProject){
+   window.royceNativeAudio.saveProject(project.name,JSON.stringify(project));
+ }else{
+   localStorage.setItem('royceStudioV19Project',JSON.stringify(project));
+   $('#projectStatus').textContent='Saved locally in browser.';
+ }
+};
+$('#loadLastNativeProject').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.loadLastProject){
+   window.royceNativeAudio.loadLastProject();
+ }else{
+   try{const p=JSON.parse(localStorage.getItem('royceStudioV19Project')||'null');if(p)window.royceApplyNativeProject(p)}catch(e){}
+ }
+};
+$('#refreshNativeProjects').onclick=()=>{
+ if(nativeAudioAvailable()&&window.royceNativeAudio.listProjects)window.royceNativeAudio.listProjects();
+ else $('#projectStatus').textContent='Native project browser is available in the iOS app.';
+};
+$('#shareCurrentProject').onclick=()=>{
+ const name=($('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session';
+ if(nativeAudioAvailable()&&window.royceNativeAudio.shareProject){
+   const project=collectRoyceProject();
+   window.royceNativeAudio.saveProject(name,JSON.stringify(project));
+   setTimeout(()=>window.royceNativeAudio.shareProject(name),180);
+ }else $('#projectStatus').textContent='Project sharing is available in the iOS app.';
+};
+$('.tab').forEach(t=>t.onclick=()=>{$('.tab').forEach(x=>x.classList.remove('active'));$$('.panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#'+t.dataset.tab).classList.add('active')});
 ['masterVol','instVol','vocVol','delay','reverb','comp'].forEach(id=>$('#'+id).oninput=()=>{syncMixer();if(id==='delay')$('#delayVal').textContent=Math.round(+$('#delay').value*100)+'%';if(id==='reverb')$('#reverbVal').textContent=Math.round(+$('#reverb').value*100)+'%';if(id==='comp')$('#compVal').textContent=Math.round(+$('#comp').value*100)+'%';if(id==='vocVol'||id==='delay'||id==='reverb')pushNativeVocalFX()});
 $('#masterMute').onclick=()=>{if(!ctx)return;master.gain.value=master.gain.value?0:+$('#masterVol').value;$('#masterMute').classList.toggle('on',master.gain.value===0)};
 $('#cutoff').oninput=e=>$('#cutoffVal').textContent=e.target.value+' Hz';$('#attack').oninput=e=>$('#attackVal').textContent=e.target.value+'s';$('#release').oninput=e=>$('#releaseVal').textContent=e.target.value+'s';
