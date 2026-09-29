@@ -84,6 +84,21 @@ struct RoyceWebView: UIViewRepresentable {
                   id:id
                 });
               },
+              loadCompTake: function(id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'loadCompTake',
+                  id:id
+                });
+              },
+              compPlay: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'compPlay'});
+              },
+              compToggle: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'compToggle'});
+              },
+              compStop: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'compStop'});
+              },
               autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'autoTune',
@@ -379,6 +394,20 @@ struct RoyceWebView: UIViewRepresentable {
                         )
                     }
                 }
+            case "loadCompTake":
+                if let id = body["id"] as? String {
+                    let loaded = NativeAudioEngine.shared.loadCompTake(id: id)
+                    let safeID = id.replacingOccurrences(of: "'", with: "\\'")
+                    message.webView?.evaluateJavaScript(
+                        "window.royceCompTakeLoaded && window.royceCompTakeLoaded('\(safeID)', \(loaded ? "true" : "false"))"
+                    )
+                }
+            case "compPlay":
+                NativeAudioEngine.shared.playCompTake()
+            case "compToggle":
+                NativeAudioEngine.shared.toggleCompTake()
+            case "compStop":
+                NativeAudioEngine.shared.stopCompTake()
             case "autoTune":
                 let enabled = body["enabled"] as? Bool ?? false
                 let key = body["key"] as? String ?? "C"
