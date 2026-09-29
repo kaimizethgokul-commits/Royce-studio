@@ -196,6 +196,23 @@ struct RoyceWebView: UIViewRepresentable {
                   type:'mixer',
                   values:values || {}
                 });
+              },
+              metronomeStart: function(bpm) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'metronomeStart',
+                  bpm:bpm
+                });
+              },
+              metronomeStop: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'metronomeStop'
+                });
+              },
+              metronomeVolume: function(value) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'metronomeVolume',
+                  value:value
+                });
               }
             };
             """,
@@ -500,6 +517,14 @@ struct RoyceWebView: UIViewRepresentable {
                     compression: Float(values["compression"] as? Double ?? 0.2),
                     limiterCeiling: Float(values["limiterCeiling"] as? Double ?? -1)
                 )
+            case "metronomeStart":
+                let bpm = body["bpm"] as? Double ?? 120
+                NativeAudioEngine.shared.startMetronome(bpm: bpm)
+            case "metronomeStop":
+                NativeAudioEngine.shared.stopMetronome()
+            case "metronomeVolume":
+                let value = Float(body["value"] as? Double ?? 0.22)
+                NativeAudioEngine.shared.setMetronomeVolume(value)
             default:
                 break
             }
