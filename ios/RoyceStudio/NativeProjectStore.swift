@@ -4,6 +4,14 @@ final class NativeProjectStore {
     static let shared = NativeProjectStore()
     private init() {}
 
+    private var recoveryURL: URL {
+        let docs = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+        return docs.appendingPathComponent("Royce-Recovery.royce.json")
+    }
+
     private var projectsDirectory: URL {
         let docs = FileManager.default.urls(
             for: .documentDirectory,
@@ -36,6 +44,23 @@ final class NativeProjectStore {
         try json.data(using: .utf8)?.write(to: url, options: .atomic)
         UserDefaults.standard.set(url.path, forKey: "RoyceLastProjectPath")
         return url
+    }
+
+    func saveRecovery(json: String) {
+        guard let data = json.data(using: .utf8) else { return }
+        try? data.write(to: recoveryURL, options: .atomic)
+    }
+
+    func loadRecovery() -> String? {
+        guard
+            FileManager.default.fileExists(atPath: recoveryURL.path),
+            let data = try? Data(contentsOf: recoveryURL)
+        else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func clearRecovery() {
+        try? FileManager.default.removeItem(at: recoveryURL)
     }
 
     func loadLast() -> String? {
