@@ -13,6 +13,19 @@ final class NativeAudioEngine {
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
     private var instrumentGraphConnected = false
     private var compressionAmount: Float = 0.2
+
+    private let deckAPlayer = AVAudioPlayerNode()
+    private let deckBPlayer = AVAudioPlayerNode()
+    private let deckAPitch = AVAudioUnitTimePitch()
+    private let deckBPitch = AVAudioUnitTimePitch()
+    private let deckAEQ = AVAudioUnitEQ(numberOfBands: 1)
+    private let deckBEQ = AVAudioUnitEQ(numberOfBands: 1)
+    private let deckAMixer = AVAudioMixerNode()
+    private let deckBMixer = AVAudioMixerNode()
+    private var deckAFile: AVAudioFile?
+    private var deckBFile: AVAudioFile?
+    private var djGraphConnected = false
+
     private let vocalEQ = AVAudioUnitEQ(numberOfBands: 2)
     private let vocalPitch = AVAudioUnitTimePitch()
     private let vocalReverb = AVAudioUnitReverb()
@@ -56,6 +69,23 @@ final class NativeAudioEngine {
         instrumentEQ.bands[1].gain = 0
         instrumentEQ.bands[1].bypass = false
 
+        deckAEQ.bands[0].filterType = .lowPass
+        deckAEQ.bands[0].frequency = 12_000
+        deckAEQ.bands[0].bypass = false
+        deckBEQ.bands[0].filterType = .lowPass
+        deckBEQ.bands[0].frequency = 12_000
+        deckBEQ.bands[0].bypass = false
+
+        deckAPitch.pitch = 0
+        deckAPitch.rate = 1
+        deckAPitch.overlap = 8
+        deckBPitch.pitch = 0
+        deckBPitch.rate = 1
+        deckBPitch.overlap = 8
+
+        deckAMixer.outputVolume = 0.707
+        deckBMixer.outputVolume = 0.707
+
         vocalEQ.bands[0].filterType = .lowShelf
         vocalEQ.bands[0].frequency = 180
         vocalEQ.bands[0].gain = 0
@@ -79,12 +109,14 @@ final class NativeAudioEngine {
 
         vocalMixer.outputVolume = 0
         connectInstrumentGraphIfNeeded()
+        connectDJGraphIfNeeded()
         startIfNeeded()
     }
 
     func startIfNeeded() {
         AudioSessionManager.shared.configure()
         connectInstrumentGraphIfNeeded()
+        connectDJGraphIfNeeded()
         guard !engine.isRunning else { return }
         do {
             try engine.start()
@@ -144,6 +176,110 @@ final class NativeAudioEngine {
         engine.connect(instrumentEQ, to: engine.mainMixerNode, format: nil)
 
         instrumentGraphConnected = true
+    }
+
+    private func connectDJGraphIfNeeded() {
+        guard !djGraphConnected else { return }
+        connectInstrumentGraphIfNeeded()
+
+        engine.attach(deckAPlayer)
+        engine.attach(deckBPlayer)
+        engine.attach(deckAPitch)
+        engine.attach(deckBPitch)
+        engine.attach(deckAEQ)
+        engine.attach(deckBEQ)
+        engine.attach(deckAMixer)
+        engine.attach(deckBMixer)
+
+        engine.connect(deckAPlayer, to: deckAPitch, format: nil)
+        engine.connect(deckAPitch, to: deckAEQ, format: nil)
+        engine.connect(deckAEQ, to: deckAMixer, format: nil)
+        engine.connect(deckAMixer, to: instrumentMixer, format: nil)
+
+        engine.connect(deckBPlayer, to: deckBPitch, format: nil)
+        engine.connect(deckBPitch, to: deckBEQ, format: nil)
+        engine.connect(deckBEQ, to: deckBMixer, format: nil)
+        engine.connect(deckBMixer, to: instrumentMixer, format: nil)
+
+        djGraphConnected = true
+    }
+
+    @discardableResult
+    func loadDeck(deck: String, url: URL) -> Bool {
+        startIfNeeded()
+        guard let file = try? AVAudioFile(forReading: url) else { return false }
+
+        if deck.uppercased() == "A" {
+            deckAPlayer.stop()
+            deckAFile = file
+            scheduleDeckA()
+        } else {
+            deckBPlayer.stop()
+            deckBFile = file
+            scheduleDeckB()
+        }
+        return true
+    }
+
+    func toggleDeck(_ deck: String) {
+        let upper = deck.uppercased()
+        let player = upper == "A" ? deckAPlayer : deckBPlayer
+        let hasFile = upper == "A" ? deckAFile != nil : deckBFile != nil
+        guard hasFile else { return }
+
+        if player.isPlaying {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+
+    func cueDeck(_ deck: String) {
+        let upper = deck.uppercased()
+        if upper == "A" {
+            guard deckAFile != nil else { return }
+            deckAPlayer.stop()
+            scheduleDeckA()
+        } else {
+            guard deckBFile != nil else { return }
+            deckBPlayer.stop()
+            scheduleDeckB()
+        }
+    }
+
+    func setDeckPitch(_ deck: String, semitones: Float) {
+        let cents = min(max(semitones, -12), 12) * 100
+        if deck.uppercased() == "A" {
+            deckAPitch.pitch = cents
+        } else {
+            deckBPitch.pitch = cents
+        }
+    }
+
+    func setDeckFilter(_ deck: String, frequency: Float) {
+        let safe = min(max(frequency, 80), 18_000)
+        if deck.uppercased() == "A" {
+            deckAEQ.bands[0].frequency = safe
+        } else {
+            deckBEQ.bands[0].frequency = safe
+        }
+    }
+
+    func setCrossfader(_ value: Float) {
+        let x = min(max(value, -1), 1)
+        let angle = Double((x + 1) * Float.pi / 4)
+        deckAMixer.outputVolume = Float(cos(angle))
+        deckBMixer.outputVolume = Float(sin(angle))
+    }
+
+    private func scheduleDeckA() {
+        guard let file = deckAFile else { return }
+        deckAPlayer.scheduleFile(file, at: nil)
+    }
+
+    private func scheduleDeckB() {
+        guard let file = deckBFile else { return }
+        deckBPlayer.scheduleFile(file, at: nil)
     }
 
     func toggleMedia(
