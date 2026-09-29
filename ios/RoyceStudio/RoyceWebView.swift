@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AVFoundation
+import UniformTypeIdentifiers
 
 struct RoyceWebView: UIViewRepresentable {
     private let studioURL = URL(string: "https://royce-studio-psi.vercel.app/?native=ios")!
@@ -109,6 +110,29 @@ struct RoyceWebView: UIViewRepresentable {
               },
               masterShare: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'masterShare'});
+              },
+              importMedia: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'importMedia'});
+              },
+              mediaToggle: function(id, volume, loop) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'mediaToggle', id:id, volume:volume, loop:!!loop
+                });
+              },
+              mediaStop: function(id) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'mediaStop', id:id
+                });
+              },
+              mediaVolume: function(id, volume) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'mediaVolume', id:id, volume:volume
+                });
+              },
+              mediaLoop: function(id, loop) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'mediaLoop', id:id, loop:!!loop
+                });
               }
             };
             """,
@@ -141,7 +165,8 @@ struct RoyceWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIDocumentPickerDelegate {
+        weak var hostWebView: WKWebView?
         func webView(
             _ webView: WKWebView,
             didFinish navigation: WKNavigation!
@@ -281,9 +306,83 @@ struct RoyceWebView: UIViewRepresentable {
                 )
                 topViewController(from: webView.window?.rootViewController)?
                     .present(controller, animated: true)
+            case "importMedia":
+                guard let webView = message.webView else { return }
+                hostWebView = webView
+                let picker = UIDocumentPickerViewController(
+                    forOpeningContentTypes: [.audio],
+                    asCopy: true
+                )
+                picker.delegate = self
+                picker.allowsMultipleSelection = true
+                topViewController(from: webView.window?.rootViewController)?
+                    .present(picker, animated: true)
+            case "mediaToggle":
+                guard
+                    let id = body["id"] as? String,
+                    let item = NativeMediaStore.shared.item(id: id)
+                else { return }
+                let volume = Float(body["volume"] as? Double ?? 1)
+                let loop = body["loop"] as? Bool ?? false
+                NativeAudioEngine.shared.toggleMedia(
+                    id: id,
+                    url: item.url,
+                    volume: volume,
+                    loop: loop
+                )
+            case "mediaStop":
+                if let id = body["id"] as? String {
+                    NativeAudioEngine.shared.stopMedia(id: id)
+                }
+            case "mediaVolume":
+                if let id = body["id"] as? String {
+                    let volume = Float(body["volume"] as? Double ?? 1)
+                    NativeAudioEngine.shared.setMediaVolume(
+                        id: id,
+                        volume: volume
+                    )
+                }
+            case "mediaLoop":
+                if let id = body["id"] as? String {
+                    let loop = body["loop"] as? Bool ?? false
+                    NativeAudioEngine.shared.setMediaLoop(id: id, loop: loop)
+                }
             default:
                 break
             }
+        }
+
+        func documentPicker(
+            _ controller: UIDocumentPickerViewController,
+            didPickDocumentsAt urls: [URL]
+        ) {
+            var imported: [[String: String]] = []
+
+            for url in urls {
+                if let item = try? NativeMediaStore.shared.importFile(from: url) {
+                    imported.append([
+                        "id": item.id,
+                        "name": item.name
+                    ])
+                }
+            }
+
+            guard
+                let data = try? JSONSerialization.data(withJSONObject: imported),
+                let json = String(data: data, encoding: .utf8)
+            else { return }
+
+            hostWebView?.evaluateJavaScript(
+                "window.royceNativeMediaImported && window.royceNativeMediaImported(\(json))"
+            )
+        }
+
+        func documentPickerWasCancelled(
+            _ controller: UIDocumentPickerViewController
+        ) {
+            hostWebView?.evaluateJavaScript(
+                "window.royceNativeMediaImportCancelled && window.royceNativeMediaImportCancelled()"
+            )
         }
 
         private func topViewController(
