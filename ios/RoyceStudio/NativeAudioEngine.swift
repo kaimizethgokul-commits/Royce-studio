@@ -737,6 +737,114 @@ final class NativeAudioEngine {
         recordingFile = nil
     }
 
+    func takeLibrary() -> [[String: Any]] {
+        let directory = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+
+        let urls = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+
+        return urls
+            .filter {
+                $0.lastPathComponent.hasPrefix("Royce-Take-") &&
+                $0.pathExtension.lowercased() == "caf"
+            }
+            .sorted {
+                let left = (try? $0.resourceValues(
+                    forKeys: [.contentModificationDateKey]
+                ).contentModificationDate) ?? .distantPast
+                let right = (try? $1.resourceValues(
+                    forKeys: [.contentModificationDateKey]
+                ).contentModificationDate) ?? .distantPast
+                return left > right
+            }
+            .map { url in
+                let values = try? url.resourceValues(
+                    forKeys: [.contentModificationDateKey, .fileSizeKey]
+                )
+                let date = values?.contentModificationDate ?? Date.distantPast
+                let bytes = values?.fileSize ?? 0
+
+                var duration = 0.0
+                if let file = try? AVAudioFile(forReading: url),
+                   file.processingFormat.sampleRate > 0 {
+                    duration = Double(file.length) /
+                        file.processingFormat.sampleRate
+                }
+
+                return [
+                    "id": url.lastPathComponent,
+                    "name": url.deletingPathExtension().lastPathComponent,
+                    "date": date.timeIntervalSince1970,
+                    "bytes": bytes,
+                    "duration": duration
+                ]
+            }
+    }
+
+    func takeURL(id: String) -> URL? {
+        guard
+            id.hasPrefix("Royce-Take-"),
+            id.hasSuffix(".caf"),
+            !id.contains("/"),
+            !id.contains("\\")
+        else { return nil }
+
+        let directory = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+        let url = directory.appendingPathComponent(id)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    func playTake(id: String) {
+        guard
+            let url = takeURL(id: id),
+            let file = try? AVAudioFile(forReading: url)
+        else { return }
+
+        startIfNeeded()
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        engine.connect(
+            player,
+            to: engine.mainMixerNode,
+            format: file.processingFormat
+        )
+        activePlayers.append(player)
+
+        player.scheduleFile(file, at: nil) { [weak self, weak player] in
+            guard let self, let player else { return }
+            DispatchQueue.main.async {
+                player.stop()
+                self.engine.detach(player)
+                self.activePlayers.removeAll { $0 === player }
+            }
+        }
+        player.play()
+    }
+
+    @discardableResult
+    func deleteTake(id: String) -> Bool {
+        guard let url = takeURL(id: id) else { return false }
+        do {
+            try FileManager.default.removeItem(at: url)
+            if lastRecordingURL == url {
+                lastRecordingURL = nil
+            }
+            return true
+        } catch {
+            print("Royce take delete error: \(error)")
+            return false
+        }
+    }
+
     func playLastRecording() {
         guard let url = lastRecordingURL,
               let file = try? AVAudioFile(forReading: url) else { return }
