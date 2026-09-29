@@ -12,6 +12,9 @@ final class NativeAudioEngine {
     private let vocalMixer = AVAudioMixerNode()
     private var vocalGraphConnected = false
     private var monitoringEnabled = false
+    private var recordingFile: AVAudioFile?
+    private var lastRecordingURL: URL?
+    private var isRecording = false
 
     private init() {
         vocalEQ.bands[0].filterType = .lowShelf
@@ -43,6 +46,95 @@ final class NativeAudioEngine {
         } catch {
             print("Royce native audio engine failed to start: \(error)")
         }
+    }
+
+    func prepareMicrophone() {
+        requestMicrophoneAccess { [weak self] granted in
+            guard let self, granted else { return }
+            DispatchQueue.main.async {
+                self.connectVocalGraphIfNeeded()
+                self.startIfNeeded()
+            }
+        }
+    }
+
+    func startRecording() {
+        requestMicrophoneAccess { [weak self] granted in
+            guard let self, granted else { return }
+            DispatchQueue.main.async {
+                guard !self.isRecording else { return }
+                self.connectVocalGraphIfNeeded()
+                self.startIfNeeded()
+
+                let input = self.engine.inputNode
+                let format = input.outputFormat(forBus: 0)
+                guard format.sampleRate > 0, format.channelCount > 0 else { return }
+
+                let directory = FileManager.default.urls(
+                    for: .documentDirectory,
+                    in: .userDomainMask
+                ).first!
+                let url = directory.appendingPathComponent(
+                    "Royce-Take-\(Int(Date().timeIntervalSince1970)).caf"
+                )
+
+                do {
+                    let file = try AVAudioFile(
+                        forWriting: url,
+                        settings: format.settings
+                    )
+                    self.recordingFile = file
+                    self.lastRecordingURL = url
+
+                    input.installTap(
+                        onBus: 0,
+                        bufferSize: 1_024,
+                        format: format
+                    ) { [weak self] buffer, _ in
+                        guard let self, self.isRecording else { return }
+                        try? self.recordingFile?.write(from: buffer)
+                    }
+
+                    self.isRecording = true
+                } catch {
+                    print("Royce recording start error: \(error)")
+                    self.recordingFile = nil
+                    self.isRecording = false
+                }
+            }
+        }
+    }
+
+    func stopRecording() {
+        guard isRecording else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        isRecording = false
+        recordingFile = nil
+    }
+
+    func playLastRecording() {
+        guard let url = lastRecordingURL,
+              let file = try? AVAudioFile(forReading: url) else { return }
+
+        startIfNeeded()
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        engine.connect(
+            player,
+            to: engine.mainMixerNode,
+            format: file.processingFormat
+        )
+        activePlayers.append(player)
+
+        player.scheduleFile(file, at: nil) { [weak self, weak player] in
+            guard let self, let player else { return }
+            DispatchQueue.main.async {
+                player.stop()
+                self.engine.detach(player)
+                self.activePlayers.removeAll { $0 === player }
+            }
+        }
+        player.play()
     }
 
     func setMonitoring(_ enabled: Bool) {
