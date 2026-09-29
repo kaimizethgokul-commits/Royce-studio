@@ -35,6 +35,14 @@ final class NativeAudioEngine {
     private let vocalDelay = AVAudioUnitDelay()
     private let vocalMixer = AVAudioMixerNode()
     private var vocalGraphConnected = false
+
+    private let compPlayer = AVAudioPlayerNode()
+    private let compReverb = AVAudioUnitReverb()
+    private let compDelay = AVAudioUnitDelay()
+    private let compMixer = AVAudioMixerNode()
+    private var compFile: AVAudioFile?
+    private var compTakeID: String?
+    private var compGraphConnected = false
     private var monitoringEnabled = false
     private var vocalFader: Float = 0.85
     private var monitorLevel: Float = 0.85
@@ -110,10 +118,18 @@ final class NativeAudioEngine {
         vocalDelay.feedback = 18
         vocalDelay.wetDryMix = 10
 
+        compReverb.loadFactoryPreset(.mediumHall)
+        compReverb.wetDryMix = 12
+        compDelay.delayTime = 0.22
+        compDelay.feedback = 18
+        compDelay.wetDryMix = 10
+        compMixer.outputVolume = 0.85
+
         vocalMixer.outputVolume = 0
         connectInstrumentGraphIfNeeded()
         connectMetronomeIfNeeded()
         connectDJGraphIfNeeded()
+        connectCompGraphIfNeeded()
         startIfNeeded()
     }
 
@@ -122,6 +138,7 @@ final class NativeAudioEngine {
         connectInstrumentGraphIfNeeded()
         connectMetronomeIfNeeded()
         connectDJGraphIfNeeded()
+        connectCompGraphIfNeeded()
         guard !engine.isRunning else { return }
         do {
             try engine.start()
@@ -236,6 +253,8 @@ final class NativeAudioEngine {
 
         vocalFader = min(max(vocalVolume, 0), 1)
         vocalMixer.pan = min(max(vocalPan, -1), 1)
+        compMixer.outputVolume = vocalFader
+        compMixer.pan = min(max(vocalPan, -1), 1)
         if monitoringEnabled {
             vocalMixer.outputVolume = vocalFader * monitorLevel
         }
@@ -737,6 +756,65 @@ final class NativeAudioEngine {
         recordingFile = nil
     }
 
+    private func connectCompGraphIfNeeded() {
+        guard !compGraphConnected else { return }
+
+        engine.attach(compPlayer)
+        engine.attach(compReverb)
+        engine.attach(compDelay)
+        engine.attach(compMixer)
+
+        engine.connect(compPlayer, to: compReverb, format: nil)
+        engine.connect(compReverb, to: compDelay, format: nil)
+        engine.connect(compDelay, to: compMixer, format: nil)
+        engine.connect(compMixer, to: engine.mainMixerNode, format: nil)
+
+        compGraphConnected = true
+    }
+
+    @discardableResult
+    func loadCompTake(id: String) -> Bool {
+        guard
+            let url = takeURL(id: id),
+            let file = try? AVAudioFile(forReading: url)
+        else { return false }
+
+        startIfNeeded()
+        compPlayer.stop()
+        compFile = file
+        compTakeID = id
+        scheduleCompTake()
+        return true
+    }
+
+    func playCompTake() {
+        guard compFile != nil else { return }
+        startIfNeeded()
+        compPlayer.stop()
+        scheduleCompTake()
+        compPlayer.play()
+    }
+
+    func toggleCompTake() {
+        guard compFile != nil else { return }
+        if compPlayer.isPlaying {
+            compPlayer.pause()
+        } else {
+            compPlayer.play()
+        }
+    }
+
+    func stopCompTake() {
+        guard compFile != nil else { return }
+        compPlayer.stop()
+        scheduleCompTake()
+    }
+
+    private func scheduleCompTake() {
+        guard let file = compFile else { return }
+        compPlayer.scheduleFile(file, at: nil)
+    }
+
     func takeLibrary() -> [[String: Any]] {
         let directory = FileManager.default.urls(
             for: .documentDirectory,
@@ -838,6 +916,11 @@ final class NativeAudioEngine {
             if lastRecordingURL == url {
                 lastRecordingURL = nil
             }
+            if compTakeID == id {
+                compPlayer.stop()
+                compFile = nil
+                compTakeID = nil
+            }
             return true
         } catch {
             print("Royce take delete error: \(error)")
@@ -905,6 +988,8 @@ final class NativeAudioEngine {
         vocalEQ.bands[1].gain = safeHigh
         vocalReverb.wetDryMix = safeReverb * 100
         vocalDelay.wetDryMix = safeDelay * 100
+        compReverb.wetDryMix = safeReverb * 100
+        compDelay.wetDryMix = safeDelay * 100
 
         if monitoringEnabled {
             vocalMixer.outputVolume = vocalFader * monitorLevel
