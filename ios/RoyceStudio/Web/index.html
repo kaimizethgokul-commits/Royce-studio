@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.27 iOS</title>
+<title>Royce Studio v1.28 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.27 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.28 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -508,12 +508,13 @@ function renderAudioTracks(){
   const row=document.createElement('div');row.className='audio-row';
   row.innerHTML='<div class="audio-top"><b></b><span class="badge">Track '+(i+1)+'</span></div>'+
   '<audio controls preload="metadata" style="width:100%"></audio>'+
-  '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="mute">Mute</button><button data-act="solo">Solo</button><button data-act="loop">Loop Off</button><button data-act="duplicate">Duplicate</button><button data-act="remove">Remove</button></div>'+
+  '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="mute">Mute</button><button data-act="solo">Solo</button><button data-act="loop">Loop Off</button><button data-act="duplicate">Duplicate</button><button data-act="split">Split</button><button data-act="remove">Remove</button></div>'+
   '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+(t.audio?.volume??t.volume??1)+'"></div>'+
   '<div class="row"><label>Pan <span data-pan-val>'+(Math.round((+t.pan||0)*100))+'</span></label><input data-act="pan" type="range" min="-1" max="1" step="0.01" value="'+(+t.pan||0)+'"></div></div>'+
   '<div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div>'+
   '<div class="grid2"><div class="row"><label>Trim Start (sec)</label><input data-act="trimStart" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimStart||0).toFixed(1)+'"></div>'+
-  '<div class="row"><label>Trim End (sec) · 0 = full</label><input data-act="trimEnd" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimEnd||0).toFixed(1)+'"></div></div>';
+  '<div class="row"><label>Trim End (sec) · 0 = full</label><input data-act="trimEnd" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimEnd||0).toFixed(1)+'"></div></div>'+
+  '<div class="row"><label>Split At Source Time (sec)</label><input data-act="splitAt" type="number" inputmode="decimal" min="0.1" step="0.1" value="'+Math.max(0.1,(+t.trimStart||0)+1).toFixed(1)+'"></div>';
   row.querySelector('b').textContent=t.name;
   const a=row.querySelector('audio'),vol=t.audio?.volume??t.volume??1;
   a.volume=vol;t.volume=vol;t.audio=a;
@@ -543,6 +544,42 @@ function renderAudioTracks(){
     t.loop=!t.loop;a.loop=t.loop;
     if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaLoop)window.royceNativeAudio.mediaLoop(t.id,t.loop);
     e.target.textContent=t.loop?'Loop On':'Loop Off';e.target.classList.toggle('on',t.loop)
+  };
+  row.querySelector('[data-act="split"]').onclick=()=>{
+    const splitInput=row.querySelector('[data-act="splitAt"]');
+    const splitAt=Math.max(0.1,+splitInput.value||0);
+    const sourceStart=Math.max(0,+t.trimStart||0);
+    const sourceEnd=Math.max(0,+t.trimEnd||0);
+
+    if(splitAt<=sourceStart+0.001||(sourceEnd>0&&splitAt>=sourceEnd-0.001)){
+      q('#timelineStatus').textContent='Split point must be inside the current clip range.';
+      return;
+    }
+
+    const rightAudio=new Audio();
+    const right={
+      id:t.id,
+      name:t.name+' · B',
+      native:!!t.native,
+      url:t.url||'',
+      audio:rightAudio,
+      volume:t.audio?.volume??t.volume??1,
+      loop:!!t.loop,
+      bar:Math.min(8,Math.max(1,(+t.bar||1)+1)),
+      muted:!!t.muted,
+      solo:false,
+      pan:+t.pan||0,
+      trimStart:splitAt,
+      trimEnd:sourceEnd
+    };
+    rightAudio.volume=right.volume;
+    if(!right.native){rightAudio.src=right.url;rightAudio.loop=right.loop}
+
+    t.name=t.name.replace(/ · A$/,'')+' · A';
+    t.trimEnd=splitAt;
+    audioTracks.splice(i+1,0,right);
+    renderAudioTracks();paintBars();scheduleRecovery();
+    q('#timelineStatus').textContent='Clip split non-destructively at '+splitAt.toFixed(1)+' sec.';
   };
   row.querySelector('[data-act="duplicate"]').onclick=()=>{
     const copyAudio=new Audio();
@@ -626,7 +663,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.27-ios',
+   version:'1.28-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
