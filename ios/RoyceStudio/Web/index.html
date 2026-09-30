@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.30 iOS</title>
+<title>Royce Studio v1.31 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.30 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.31 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -69,7 +69,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
-<p class="status">Import beats or loops. Place clips by bar + beat + 16th step, then trim, pan, mute, solo, split or duplicate them.</p>
+<p class="status">Import beats or loops. 32-bar arrangement · place clips by bar + beat + 16th step, then trim, pan, mute, solo, split or duplicate them.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
@@ -84,17 +84,17 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
   <div class="grid2">
     <div class="row">
       <label>Start Bar <span id="punchStartVal">2</span></label>
-      <input id="punchStart" type="range" min="1" max="8" step="1" value="2">
+      <input id="punchStart" type="range" min="1" max="32" step="1" value="2">
     </div>
     <div class="row">
       <label>End Bar <span id="punchEndVal">4</span></label>
-      <input id="punchEnd" type="range" min="1" max="8" step="1" value="4">
+      <input id="punchEnd" type="range" min="1" max="32" step="1" value="4">
     </div>
   </div>
 </div>
 <div class="grid2"><label class="file-btn">+ Browser Import<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="nativeImportMedia">+ Import from iPhone Files</button></div>
 <div class="grid2" style="margin-top:10px"><button id="stopAllAudio">Stop All</button><span></span></div>
-<div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
+<div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div><div class="bar">9</div><div class="bar">10</div><div class="bar">11</div><div class="bar">12</div><div class="bar">13</div><div class="bar">14</div><div class="bar">15</div><div class="bar">16</div><div class="bar">17</div><div class="bar">18</div><div class="bar">19</div><div class="bar">20</div><div class="bar">21</div><div class="bar">22</div><div class="bar">23</div><div class="bar">24</div><div class="bar">25</div><div class="bar">26</div><div class="bar">27</div><div class="bar">28</div><div class="bar">29</div><div class="bar">30</div><div class="bar">31</div><div class="bar">32</div></div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
 <div id="audioList" class="audio-list" style="margin-top:12px"><p class="status">No imported tracks yet.</p></div>
 </div></section>
 
@@ -135,7 +135,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
     <button id="compStop">Stop / Cue Comp</button>
     <div class="row">
       <label>Vocal Start Bar <span id="compStartBarVal">1</span></label>
-      <input id="compStartBar" type="range" min="1" max="8" step="1" value="1">
+      <input id="compStartBar" type="range" min="1" max="32" step="1" value="1">
     </div>
   </div>
 </div>
@@ -383,11 +383,11 @@ function startTimeline(record=false){
    },delay));
  });
  const update=()=>{
-   const bar=Math.min(8,Math.floor((performance.now()-started)/barMs)+1);
+   const bar=Math.min(32,Math.floor((performance.now()-started)/barMs)+1);
    qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1));
    q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+' · '+bpm+' BPM'+(useNativeTransport?' · Native Sync':'');
-   if(bar>=8&&!audioTracks.some(t=>t.loop)){
-     if(performance.now()-started>=barMs*8){if(timelineClock){clearInterval(timelineClock);timelineClock=null}}
+   if(bar>=32&&!audioTracks.some(t=>t.loop)){
+     if(performance.now()-started>=barMs*32){if(timelineClock){clearInterval(timelineClock);timelineClock=null}}
    }
  };
  update();timelineClock=setInterval(update,120);
@@ -429,8 +429,8 @@ q('#timelineRecord').onclick=()=>{
 };
 
 function normalizePunchBars(){
- let start=Math.max(1,Math.min(8,+q('#punchStart').value||1));
- let end=Math.max(1,Math.min(8,+q('#punchEnd').value||1));
+ let start=Math.max(1,Math.min(32,+q('#punchStart').value||1));
+ let end=Math.max(1,Math.min(32,+q('#punchEnd').value||1));
  if(end<start){end=start;q('#punchEnd').value=end}
  q('#punchStartVal').textContent=start;
  q('#punchEndVal').textContent=end;
@@ -518,7 +518,7 @@ function renderAudioTracks(){
   '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="mute">Mute</button><button data-act="solo">Solo</button><button data-act="loop">Loop Off</button><button data-act="duplicate">Duplicate</button><button data-act="split">Split</button><button data-act="remove">Remove</button></div>'+
   '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+(t.audio?.volume??t.volume??1)+'"></div>'+
   '<div class="row"><label>Pan <span data-pan-val>'+(Math.round((+t.pan||0)*100))+'</span></label><input data-act="pan" type="range" min="-1" max="1" step="0.01" value="'+(+t.pan||0)+'"></div></div>'+
-  '<div class="grid2"><div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div>'+
+  '<div class="grid2"><div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="32" step="1" value="'+t.bar+'"></div>'+
   '<div class="row"><label>Start Beat <span data-beat-val>'+(Math.min(4,Math.max(1,+t.beat||1)))+'</span></label><input data-act="beat" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.beat||1))+'"></div></div>'+
   '<div class="row"><label>16th Step <span data-sixteenth-val>'+(Math.min(4,Math.max(1,+t.sixteenth||1)))+'</span></label><input data-act="sixteenth" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.sixteenth||1))+'"></div>'+
   '<div class="grid2"><div class="row"><label>Trim Start (sec)</label><input data-act="trimStart" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimStart||0).toFixed(1)+'"></div>'+
@@ -574,7 +574,7 @@ function renderAudioTracks(){
       audio:rightAudio,
       volume:t.audio?.volume??t.volume??1,
       loop:!!t.loop,
-      bar:Math.min(8,Math.max(1,(+t.bar||1)+1)),
+      bar:Math.min(32,Math.max(1,(+t.bar||1)+1)),
       beat:Math.min(4,Math.max(1,+t.beat||1)),
       sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
       muted:!!t.muted,
@@ -602,7 +602,7 @@ function renderAudioTracks(){
       audio:copyAudio,
       volume:t.audio?.volume??t.volume??1,
       loop:!!t.loop,
-      bar:Math.min(8,Math.max(1,(+t.bar||1)+1)),
+      bar:Math.min(32,Math.max(1,(+t.bar||1)+1)),
       beat:Math.min(4,Math.max(1,+t.beat||1)),
       sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
       muted:!!t.muted,
@@ -686,7 +686,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.30-ios',
+   version:'1.31-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
