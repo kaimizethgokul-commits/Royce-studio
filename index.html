@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Royce Studio">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>Royce Studio v1.39 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
@@ -1458,6 +1462,13 @@ q('#strength').oninput=e=>{q('#strengthVal').textContent=e.target.value+'%';push
 q('#speed').oninput=e=>{q('#speedVal').textContent=e.target.value+' ms';pushNativeTune()};
 q('#human').oninput=e=>{q('#humanVal').textContent=e.target.value+'%';pushNativeTune()};
 q('#key').onchange=pushNativeTune;q('#scale').onchange=pushNativeTune;
+</script>
+<script>
+window.addEventListener('load',()=>{
+  if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  }
+});
 </script>
 </body>
 </html>
