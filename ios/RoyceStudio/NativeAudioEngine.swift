@@ -511,6 +511,7 @@ final class NativeAudioEngine {
 
             let bar = max(1, item["bar"] as? Int ?? 1)
             let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
+            let pan = min(max(item["pan"] as? Float ?? 0, -1), 1)
             let offsetFrames = AVAudioFramePosition(
                 Double(bar - 1) * barSeconds * sampleRate
             )
@@ -521,6 +522,7 @@ final class NativeAudioEngine {
 
             let player = AVAudioPlayerNode()
             player.volume = volume
+            player.pan = pan
             engine.attach(player)
             engine.connect(
                 player,
