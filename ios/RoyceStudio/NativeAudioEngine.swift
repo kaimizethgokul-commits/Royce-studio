@@ -510,10 +510,15 @@ final class NativeAudioEngine {
             else { continue }
 
             let bar = max(1, item["bar"] as? Int ?? 1)
+            let beat = min(max(item["beat"] as? Int ?? 1, 1), 4)
             let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
             let pan = min(max(item["pan"] as? Float ?? 0, -1), 1)
+            let beatSeconds = 60.0 / safeBPM
+            let offsetSeconds =
+                (Double(bar - 1) * barSeconds) +
+                (Double(beat - 1) * beatSeconds)
             let offsetFrames = AVAudioFramePosition(
-                Double(bar - 1) * barSeconds * sampleRate
+                offsetSeconds * sampleRate
             )
             let when = AVAudioTime(
                 sampleTime: baseSampleTime + offsetFrames,
