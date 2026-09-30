@@ -529,7 +529,39 @@ final class NativeAudioEngine {
                 to: instrumentMixer,
                 format: file.processingFormat
             )
-            player.scheduleFile(file, at: when)
+            let fileRate = file.processingFormat.sampleRate
+            let totalFrames = file.length
+            let trimStartSeconds = max(item["trimStart"] as? Double ?? 0, 0)
+            let requestedEnd = item["trimEnd"] as? Double ?? 0
+            let trimEndSeconds = requestedEnd > 0
+                ? requestedEnd
+                : Double(totalFrames) / fileRate
+
+            let startFrame = min(
+                max(AVAudioFramePosition(trimStartSeconds * fileRate), 0),
+                totalFrames
+            )
+            let endFrame = min(
+                max(AVAudioFramePosition(trimEndSeconds * fileRate), startFrame),
+                totalFrames
+            )
+            let frameCount64 = endFrame - startFrame
+
+            guard frameCount64 > 0 else {
+                engine.disconnectNodeOutput(player)
+                engine.detach(player)
+                continue
+            }
+
+            let frameCount = AVAudioFrameCount(
+                min(frameCount64, AVAudioFramePosition(UInt32.max))
+            )
+            player.scheduleSegment(
+                file,
+                startingFrame: startFrame,
+                frameCount: frameCount,
+                at: when
+            )
             player.play(at: when)
             transportPlayers.append(player)
             scheduledAnything = true
