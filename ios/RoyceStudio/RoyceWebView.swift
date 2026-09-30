@@ -99,12 +99,13 @@ struct RoyceWebView: UIViewRepresentable {
               compStop: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'compStop'});
               },
-              transportStart: function(bpm, tracks, compStartBar) {
+              transportStart: function(bpm, tracks, compStartBar, lengthBars) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'transportStart',
                   bpm:bpm,
                   tracks:tracks,
-                  compStartBar:compStartBar
+                  compStartBar:compStartBar,
+                  lengthBars:lengthBars || 32
                 });
               },
               transportStop: function() {
@@ -437,6 +438,7 @@ struct RoyceWebView: UIViewRepresentable {
                 let bpm = body["bpm"] as? Double ?? 120
                 let requested = body["tracks"] as? [[String: Any]] ?? []
                 let compStartBar = body["compStartBar"] as? Int
+                let lengthBars = body["lengthBars"] as? Int ?? 32
                 var nativeTracks: [[String: Any]] = []
 
                 for item in requested {
@@ -462,7 +464,8 @@ struct RoyceWebView: UIViewRepresentable {
                 let started = NativeAudioEngine.shared.startNativeTransport(
                     bpm: bpm,
                     tracks: nativeTracks,
-                    compStartBar: compStartBar
+                    compStartBar: compStartBar,
+                    lengthBars: lengthBars
                 )
                 message.webView?.evaluateJavaScript(
                     "window.royceNativeTransportStarted && window.royceNativeTransportStarted(\(started ? "true" : "false"))"
