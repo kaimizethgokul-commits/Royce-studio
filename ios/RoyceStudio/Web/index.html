@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.35 iOS</title>
+<title>Royce Studio v1.36 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -29,7 +29,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 .audio-list{display:grid;gap:10px}.audio-row{background:#0e0e14;border:1px solid #2a2a38;border-radius:16px;padding:12px;display:grid;gap:10px}
 .audio-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.audio-top b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .audio-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.file-btn{display:grid;place-items:center;border:1px solid #343445;background:#242431;color:#fff;border-radius:14px;min-height:46px;padding:10px 13px}
-.file-btn input{display:none}.timeline-ruler{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:12px}.bar{height:44px;border-radius:9px;border:1px solid #303041;background:#111119;display:grid;place-items:center;color:#777;font-size:10px}.bar.on{background:linear-gradient(135deg,#5639bd,#8b5cf6);color:#fff}.bar.playhead{outline:2px solid #fff;transform:translateY(-2px)}
+.file-btn input{display:none}.timeline-ruler{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:12px}.bar{height:44px;border-radius:9px;border:1px solid #303041;background:#111119;display:grid;place-items:center;color:#777;font-size:10px}.bar.on{background:linear-gradient(135deg,#5639bd,#8b5cf6);color:#fff}.bar.playhead{outline:2px solid #fff;transform:translateY(-2px)}.bar.outside{opacity:.22}
 .deck-file{margin:10px 0}.deck audio{width:100%;margin:8px 0}
 @media(max-width:620px){.audio-actions{grid-template-columns:1fr 1fr}.timeline-ruler{grid-template-columns:repeat(4,1fr)}}
 
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.35 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.36 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -69,9 +69,10 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
-<p class="status">Import beats or loops. 32-bar arrangement · native synchronized clip looping, live mixing, selectable snap grid, trim, mute, solo, split and duplicate.</p>
+<p class="status">Import beats or loops. 8/16/24/32-bar arrangement · native synchronized looping, live mixing, snap grid, trim, mute, solo, split and duplicate.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
-<div class="grid2" style="margin-top:10px"><div class="row"><label>Nudge / Snap Grid</label><select id="snapGrid"><option value="1">1/16 Note</option><option value="2">1/8 Note</option><option value="4">1 Beat</option><option value="16">1 Bar</option></select></div><p class="status" id="snapStatus">Nudge moves clips by 1/16 note.</p></div>
+<div class="grid2" style="margin-top:10px"><div class="row"><label>Nudge / Snap Grid</label><select id="snapGrid"><option value="1">1/16 Note</option><option value="2">1/8 Note</option><option value="4">1 Beat</option><option value="16">1 Bar</option></select></div><div class="row"><label>Song Length</label><select id="songLength"><option value="8">8 Bars</option><option value="16">16 Bars</option><option value="24">24 Bars</option><option value="32" selected>32 Bars</option></select></div></div>
+<div class="grid2"><p class="status" id="snapStatus">Nudge moves clips by 1/16 note.</p><p class="status" id="songLengthStatus">32-bar song.</p></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
 <p class="status" id="timelineStatus">Stopped · Native synchronized transport ready</p>
@@ -336,7 +337,7 @@ function stopTimeline(stopMaster=false){
 }
 function startTimeline(record=false){
  stopTimeline(false);
- const bpm=timelineBpm(),barMs=(240000/bpm),started=performance.now();
+ const bpm=timelineBpm(),barMs=(240000/bpm),lengthBars=arrangementBars(),started=performance.now();
  if(metronomeEnabled&&nativeAudioAvailable()&&window.royceNativeAudio.metronomeStart){
    window.royceNativeAudio.metronomeVolume?.(+q('#metronomeVolume').value);
    window.royceNativeAudio.metronomeStart(bpm);
@@ -360,16 +361,18 @@ function startTimeline(record=false){
      trimStart:Math.max(0,+t.trimStart||0),
      trimEnd:Math.max(0,+t.trimEnd||0)
    }));
-   const compBar=compLoadedTakeId?Math.max(1,+q('#compStartBar').value||1):null;
+   const rawCompBar=Math.max(1,+q('#compStartBar').value||1);
+   const compBar=(compLoadedTakeId&&rawCompBar<=lengthBars)?rawCompBar:null;
    if(nativeTracks.length||compBar!==null){
-     window.royceNativeAudio.transportStart(bpm,nativeTracks,compBar);
+     window.royceNativeAudio.transportStart(bpm,nativeTracks,compBar,lengthBars);
    }
  }
- if(compLoadedTakeId&&!useNativeTransport&&nativeAudioAvailable()&&window.royceNativeAudio.compPlay){
+ if(compLoadedTakeId&&!useNativeTransport&&(+q('#compStartBar').value||1)<=lengthBars&&nativeAudioAvailable()&&window.royceNativeAudio.compPlay){
    const vocalDelay=Math.max(0,(Math.max(1,+q('#compStartBar').value||1)-1)*barMs);
    timelineTimers.push(setTimeout(()=>window.royceNativeAudio.compPlay(),vocalDelay));
  }
  audioTracks.forEach(t=>{
+   if((+t.bar||1)>lengthBars)return;
    const anySolo=audioTracks.some(x=>!!x.solo);
    if(t.muted||(anySolo&&!t.solo))return;
    if(t.native&&useNativeTransport)return;
@@ -388,11 +391,13 @@ function startTimeline(record=false){
    },delay));
  });
  const update=()=>{
-   const bar=Math.min(32,Math.floor((performance.now()-started)/barMs)+1);
-   qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1));
-   q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+' · '+bpm+' BPM'+(useNativeTransport?' · Native Sync':'');
-   if(bar>=32&&!audioTracks.some(t=>t.loop)){
-     if(performance.now()-started>=barMs*32){if(timelineClock){clearInterval(timelineClock);timelineClock=null}}
+   const elapsed=performance.now()-started;
+   const bar=Math.min(lengthBars,Math.floor(elapsed/barMs)+1);
+   qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1&&i<lengthBars));
+   q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+'/'+lengthBars+' · '+bpm+' BPM'+(useNativeTransport?' · Native Sync':'');
+   if(elapsed>=barMs*lengthBars){
+     stopTimeline(record);
+     return;
    }
  };
  update();timelineClock=setInterval(update,120);
@@ -434,8 +439,9 @@ q('#timelineRecord').onclick=()=>{
 };
 
 function normalizePunchBars(){
- let start=Math.max(1,Math.min(32,+q('#punchStart').value||1));
- let end=Math.max(1,Math.min(32,+q('#punchEnd').value||1));
+ const limit=arrangementBars();
+ let start=Math.max(1,Math.min(limit,+q('#punchStart').value||1));
+ let end=Math.max(1,Math.min(limit,+q('#punchEnd').value||1));
  if(end<start){end=start;q('#punchEnd').value=end}
  q('#punchStartVal').textContent=start;
  q('#punchEndVal').textContent=end;
@@ -512,7 +518,19 @@ q('#timelineBpm').onchange=()=>{
  scheduleRecovery();
 };
 q('#snapGrid').onchange=()=>{updateSnapGridUI();scheduleRecovery()};
+q('#songLength').onchange=()=>{updateArrangementUI();scheduleRecovery()};
 
+function arrangementBars(){
+ const v=+q('#songLength')?.value||32;
+ return [8,16,24,32].includes(v)?v:32;
+}
+function updateArrangementUI(){
+ const length=arrangementBars();
+ qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('outside',i>=length));
+ const status=q('#songLengthStatus');
+ if(status)status.textContent=length+'-bar song.';
+ if(typeof normalizePunchBars==='function')normalizePunchBars();
+}
 function snapGridSteps(){
  const el=q('#snapGrid');
  return Math.min(16,Math.max(1,+el?.value||1));
@@ -747,10 +765,11 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.35-ios',
+   version:'1.36-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
+   songLength:arrangementBars(),
    snapGrid:snapGridSteps(),
    metronome:{
      enabled:metronomeEnabled,
@@ -863,6 +882,7 @@ function applyValue(id,value){
 window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');applyValue('timelineBpm',p.bpm||120);
+ applyValue('songLength',p.songLength||32);updateArrangementUI();
  applyValue('snapGrid',p.snapGrid||1);updateSnapGridUI();
  const metro=p.metronome||{},punch=p.punch||{};
  metronomeEnabled=!!metro.enabled;countInEnabled=!!metro.countIn;
