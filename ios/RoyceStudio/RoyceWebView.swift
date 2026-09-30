@@ -434,7 +434,8 @@ struct RoyceWebView: UIViewRepresentable {
                     nativeTracks.append([
                         "url": media.url.absoluteString,
                         "bar": item["bar"] as? Int ?? 1,
-                        "volume": Float(item["volume"] as? Double ?? 1)
+                        "volume": Float(item["volume"] as? Double ?? 1),
+                        "pan": Float(item["pan"] as? Double ?? 0)
                     ])
                 }
 
