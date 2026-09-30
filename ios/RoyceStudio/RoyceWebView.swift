@@ -435,6 +435,7 @@ struct RoyceWebView: UIViewRepresentable {
                         "url": media.url.absoluteString,
                         "bar": item["bar"] as? Int ?? 1,
                         "beat": item["beat"] as? Int ?? 1,
+                        "sixteenth": item["sixteenth"] as? Int ?? 1,
                         "volume": Float(item["volume"] as? Double ?? 1),
                         "pan": Float(item["pan"] as? Double ?? 0),
                         "trimStart": item["trimStart"] as? Double ?? 0,
