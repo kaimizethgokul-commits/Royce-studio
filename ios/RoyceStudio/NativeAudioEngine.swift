@@ -10,6 +10,7 @@ final class NativeAudioEngine {
     private var mediaPlayers: [String: AVAudioPlayerNode] = [:]
     private var mediaFiles: [String: AVAudioFile] = [:]
     private var mediaLoop: [String: Bool] = [:]
+    private var transportPlayers: [AVAudioPlayerNode] = []
     private let instrumentMixer = AVAudioMixerNode()
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
     private var instrumentGraphConnected = false
@@ -469,6 +470,85 @@ final class NativeAudioEngine {
                 }
             }
         }
+    }
+
+    func stopNativeTransport() {
+        transportPlayers.forEach { player in
+            player.stop()
+            engine.detach(player)
+        }
+        transportPlayers.removeAll()
+        compPlayer.stop()
+    }
+
+    @discardableResult
+    func startNativeTransport(
+        bpm: Double,
+        tracks: [[String: Any]],
+        compStartBar: Int?
+    ) -> Bool {
+        startIfNeeded()
+        stopNativeTransport()
+
+        let safeBPM = min(max(bpm, 40), 220)
+        let barSeconds = 240.0 / safeBPM
+        let sampleRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
+        guard sampleRate > 0 else { return false }
+
+        // Give AVAudioEngine a short lead time so every player can be scheduled
+        // against exactly the same host/sample clock.
+        let leadFrames = AVAudioFramePosition(sampleRate * 0.12)
+        let baseSampleTime = (engine.outputNode.lastRenderTime?.sampleTime ?? 0) + leadFrames
+
+        var scheduledAnything = false
+
+        for item in tracks {
+            guard
+                let urlString = item["url"] as? String,
+                let url = URL(string: urlString),
+                let file = try? AVAudioFile(forReading: url)
+            else { continue }
+
+            let bar = max(1, item["bar"] as? Int ?? 1)
+            let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
+            let offsetFrames = AVAudioFramePosition(
+                Double(bar - 1) * barSeconds * sampleRate
+            )
+            let when = AVAudioTime(
+                sampleTime: baseSampleTime + offsetFrames,
+                atRate: sampleRate
+            )
+
+            let player = AVAudioPlayerNode()
+            player.volume = volume
+            engine.attach(player)
+            engine.connect(
+                player,
+                to: instrumentMixer,
+                format: file.processingFormat
+            )
+            player.scheduleFile(file, at: when)
+            player.play(at: when)
+            transportPlayers.append(player)
+            scheduledAnything = true
+        }
+
+        if let compStartBar, let file = compFile {
+            let bar = max(1, compStartBar)
+            let offsetFrames = AVAudioFramePosition(
+                Double(bar - 1) * barSeconds * sampleRate
+            )
+            let when = AVAudioTime(
+                sampleTime: baseSampleTime + offsetFrames,
+                atRate: sampleRate
+            )
+            compPlayer.stop()
+            compPlayer.scheduleFile(file, at: when)
+            compPlayer.play(at: when)
+            scheduledAnything = true
+        }
+
+        return scheduledAnything
     }
 
     private var exportsDirectory: URL {
