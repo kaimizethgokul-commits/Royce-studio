@@ -493,13 +493,17 @@ final class NativeAudioEngine {
     func startNativeTransport(
         bpm: Double,
         tracks: [[String: Any]],
-        compStartBar: Int?
+        compStartBar: Int?,
+        lengthBars: Int
     ) -> Bool {
         startIfNeeded()
         stopNativeTransport()
 
         let safeBPM = min(max(bpm, 40), 220)
+        let safeLengthBars = min(max(lengthBars, 1), 32)
         let barSeconds = 240.0 / safeBPM
+        let arrangementDurationSeconds =
+            barSeconds * Double(safeLengthBars)
         let sampleRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
         guard sampleRate > 0 else { return false }
 
@@ -530,6 +534,9 @@ final class NativeAudioEngine {
                 (Double(bar - 1) * barSeconds) +
                 (Double(beat - 1) * beatSeconds) +
                 (Double(sixteenth - 1) * sixteenthSeconds)
+            guard offsetSeconds < arrangementDurationSeconds else {
+                continue
+            }
             let offsetFrames = AVAudioFramePosition(
                 offsetSeconds * sampleRate
             )
@@ -577,8 +584,6 @@ final class NativeAudioEngine {
 
             if shouldLoop {
                 let clipDurationSeconds = Double(frameCount) / fileRate
-                let arrangementDurationSeconds = barSeconds * 32.0
-
                 if clipDurationSeconds > 0 {
                     var loopStartSeconds = offsetSeconds
                     var scheduledLoops = 0
@@ -618,10 +623,26 @@ final class NativeAudioEngine {
                     }
                 }
             } else {
+                let remainingSeconds =
+                    arrangementDurationSeconds - offsetSeconds
+                let availableFrames = AVAudioFramePosition(
+                    remainingSeconds * fileRate
+                )
+                let finalFrameCount = AVAudioFrameCount(
+                    min(
+                        AVAudioFramePosition(frameCount),
+                        max(0, availableFrames)
+                    )
+                )
+                guard finalFrameCount > 0 else {
+                    engine.disconnectNodeOutput(player)
+                    engine.detach(player)
+                    continue
+                }
                 player.scheduleSegment(
                     file,
                     startingFrame: startFrame,
-                    frameCount: frameCount,
+                    frameCount: finalFrameCount,
                     at: when
                 )
             }
@@ -633,17 +654,44 @@ final class NativeAudioEngine {
 
         if let compStartBar, let file = compFile {
             let bar = max(1, compStartBar)
-            let offsetFrames = AVAudioFramePosition(
-                Double(bar - 1) * barSeconds * sampleRate
-            )
-            let when = AVAudioTime(
-                sampleTime: baseSampleTime + offsetFrames,
-                atRate: sampleRate
-            )
-            compPlayer.stop()
-            compPlayer.scheduleFile(file, at: when)
-            compPlayer.play(at: when)
-            scheduledAnything = true
+            let compOffsetSeconds = Double(bar - 1) * barSeconds
+
+            if compOffsetSeconds < arrangementDurationSeconds {
+                let offsetFrames = AVAudioFramePosition(
+                    compOffsetSeconds * sampleRate
+                )
+                let when = AVAudioTime(
+                    sampleTime: baseSampleTime + offsetFrames,
+                    atRate: sampleRate
+                )
+                let remainingSeconds =
+                    arrangementDurationSeconds - compOffsetSeconds
+                let compRate = file.processingFormat.sampleRate
+                let availableFrames = AVAudioFramePosition(
+                    remainingSeconds * compRate
+                )
+                let compFrameCount = AVAudioFrameCount(
+                    min(
+                        file.length,
+                        min(
+                            availableFrames,
+                            AVAudioFramePosition(UInt32.max)
+                        )
+                    )
+                )
+
+                if compFrameCount > 0 {
+                    compPlayer.stop()
+                    compPlayer.scheduleSegment(
+                        file,
+                        startingFrame: 0,
+                        frameCount: compFrameCount,
+                        at: when
+                    )
+                    compPlayer.play(at: when)
+                    scheduledAnything = true
+                }
+            }
         }
 
         return scheduledAnything
