@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.34 iOS</title>
+<title>Royce Studio v1.35 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.34 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.35 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -69,7 +69,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
-<p class="status">Import beats or loops. 32-bar arrangement · live native clip mixing with selectable snap grid, trim, mute, solo, split and duplicate.</p>
+<p class="status">Import beats or loops. 32-bar arrangement · native synchronized clip looping, live mixing, selectable snap grid, trim, mute, solo, split and duplicate.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
 <div class="grid2" style="margin-top:10px"><div class="row"><label>Nudge / Snap Grid</label><select id="snapGrid"><option value="1">1/16 Note</option><option value="2">1/8 Note</option><option value="4">1 Beat</option><option value="16">1 Bar</option></select></div><p class="status" id="snapStatus">Nudge moves clips by 1/16 note.</p></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
@@ -356,6 +356,7 @@ function startTimeline(record=false){
      sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
      volume:(t.muted||(anySolo&&!t.solo))?0:(t.audio?.volume??t.volume??1),
      pan:+t.pan||0,
+     loop:!!t.loop,
      trimStart:Math.max(0,+t.trimStart||0),
      trimEnd:Math.max(0,+t.trimEnd||0)
    }));
@@ -564,9 +565,10 @@ function renderAudioTracks(){
       window.royceNativeAudio.mediaToggle(t.id,a.volume,t.loop);
     }else a.paused?a.play():a.pause();
   };
-  const muteBtn=row.querySelector('[data-act="mute"]'),soloBtn=row.querySelector('[data-act="solo"]');
+  const muteBtn=row.querySelector('[data-act="mute"]'),soloBtn=row.querySelector('[data-act="solo"]'),loopBtn=row.querySelector('[data-act="loop"]');
   muteBtn.textContent=t.muted?'Muted':'Mute';muteBtn.classList.toggle('on',!!t.muted);
   soloBtn.textContent=t.solo?'Solo On':'Solo';soloBtn.classList.toggle('on',!!t.solo);
+  loopBtn.textContent=t.loop?'Loop On':'Loop Off';loopBtn.classList.toggle('on',!!t.loop);
   muteBtn.onclick=()=>{
     t.muted=!t.muted;
     muteBtn.textContent=t.muted?'Muted':'Mute';muteBtn.classList.toggle('on',!!t.muted);
@@ -583,10 +585,11 @@ function renderAudioTracks(){
     syncLiveNativeClipMix();
     scheduleRecovery();
   };
-  row.querySelector('[data-act="loop"]').onclick=e=>{
+  loopBtn.onclick=()=>{
     t.loop=!t.loop;a.loop=t.loop;
     if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaLoop)window.royceNativeAudio.mediaLoop(t.id,t.loop);
-    e.target.textContent=t.loop?'Loop On':'Loop Off';e.target.classList.toggle('on',t.loop)
+    loopBtn.textContent=t.loop?'Loop On':'Loop Off';loopBtn.classList.toggle('on',t.loop);
+    scheduleRecovery();
   };
   row.querySelector('[data-act="split"]').onclick=()=>{
     const splitInput=row.querySelector('[data-act="splitAt"]');
@@ -744,7 +747,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.34-ios',
+   version:'1.35-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
