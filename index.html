@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.21 iOS</title>
+<title>Royce Studio v1.22 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,8 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.21 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.22 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
 </div>
@@ -541,7 +542,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.21-ios',
+   version:'1.22-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -707,6 +708,68 @@ window.royceReceiveProjectList=function(names){
  });
 };
 
+
+let undoStack=[],redoStack=[],historyTimer=null,historyApplying=false,lastHistoryJSON='';
+function historySnapshot(){
+ const p=collectRoyceProject();
+ delete p.savedAt;
+ delete p.recoverySavedAt;
+ return JSON.stringify(p);
+}
+function updateHistoryButtons(){
+ q('#undoBtn').disabled=undoStack.length<2;
+ q('#redoBtn').disabled=!redoStack.length;
+}
+function commitHistory(){
+ if(historyApplying)return;
+ try{
+   const json=historySnapshot();
+   if(json===lastHistoryJSON)return;
+   undoStack.push(json);
+   if(undoStack.length>30)undoStack.shift();
+   lastHistoryJSON=json;
+   redoStack=[];
+   updateHistoryButtons();
+ }catch(e){}
+}
+function scheduleHistory(){
+ if(historyApplying)return;
+ clearTimeout(historyTimer);
+ historyTimer=setTimeout(commitHistory,450);
+}
+async function applyHistoryJSON(json){
+ if(!json)return;
+ historyApplying=true;
+ recoverySuspended=true;
+ try{
+   await window.royceApplyNativeProject(JSON.parse(json));
+   lastHistoryJSON=json;
+ }catch(e){
+   q('#projectStatus').textContent='Undo/Redo could not restore that edit.';
+ }
+ recoverySuspended=false;
+ historyApplying=false;
+ updateHistoryButtons();
+}
+q('#undoBtn').onclick=async()=>{
+ if(undoStack.length<2)return;
+ const current=undoStack.pop();
+ redoStack.push(current);
+ await applyHistoryJSON(undoStack[undoStack.length-1]);
+};
+q('#redoBtn').onclick=async()=>{
+ if(!redoStack.length)return;
+ const json=redoStack.pop();
+ undoStack.push(json);
+ await applyHistoryJSON(json);
+};
+document.addEventListener('input',scheduleHistory,{passive:true});
+document.addEventListener('change',scheduleHistory,{passive:true});
+document.addEventListener('click',e=>{
+ if(e.target&&e.target.matches('button')&&!e.target.matches('#undoBtn,#redoBtn'))scheduleHistory();
+},{passive:true});
+setTimeout(commitHistory,1400);
+
 let recoveryTimer=null,recoveryAvailable=null,recoverySuspended=false;
 function saveRecoverySnapshot(){
  if(recoverySuspended)return;
@@ -723,6 +786,7 @@ function saveRecoverySnapshot(){
 }
 function scheduleRecovery(){
  if(recoverySuspended)return;
+ scheduleHistory();
  clearTimeout(recoveryTimer);
  recoveryTimer=setTimeout(saveRecoverySnapshot,900);
 }
