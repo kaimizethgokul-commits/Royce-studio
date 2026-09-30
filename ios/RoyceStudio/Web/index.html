@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.33 iOS</title>
+<title>Royce Studio v1.34 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.33 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.34 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -69,8 +69,9 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
-<p class="status">Import beats or loops. 32-bar arrangement · unique clips with live native volume/pan, 1/16-note placement, trim, mute, solo, split and duplicate.</p>
+<p class="status">Import beats or loops. 32-bar arrangement · live native clip mixing with selectable snap grid, trim, mute, solo, split and duplicate.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
+<div class="grid2" style="margin-top:10px"><div class="row"><label>Nudge / Snap Grid</label><select id="snapGrid"><option value="1">1/16 Note</option><option value="2">1/8 Note</option><option value="4">1 Beat</option><option value="16">1 Bar</option></select></div><p class="status" id="snapStatus">Nudge moves clips by 1/16 note.</p></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
 <p class="status" id="timelineStatus">Stopped · Native synchronized transport ready</p>
@@ -94,7 +95,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </div>
 <div class="grid2"><label class="file-btn">+ Browser Import<input id="importTracks" type="file" accept="audio/*" multiple></label><button id="nativeImportMedia">+ Import from iPhone Files</button></div>
 <div class="grid2" style="margin-top:10px"><button id="stopAllAudio">Stop All</button><span></span></div>
-<div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div><div class="bar">9</div><div class="bar">10</div><div class="bar">11</div><div class="bar">12</div><div class="bar">13</div><div class="bar">14</div><div class="bar">15</div><div class="bar">16</div><div class="bar">17</div><div class="bar">18</div><div class="bar">19</div><div class="bar">20</div><div class="bar">21</div><div class="bar">22</div><div class="bar">23</div><div class="bar">24</div><div class="bar">25</div><div class="bar">26</div><div class="bar">27</div><div class="bar">28</div><div class="bar">29</div><div class="bar">30</div><div class="bar">31</div><div class="bar">32</div></div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div></div>
+<div class="timeline-ruler" id="timelineRuler"><div class="bar">1</div><div class="bar">2</div><div class="bar">3</div><div class="bar">4</div><div class="bar">5</div><div class="bar">6</div><div class="bar">7</div><div class="bar">8</div><div class="bar">9</div><div class="bar">10</div><div class="bar">11</div><div class="bar">12</div><div class="bar">13</div><div class="bar">14</div><div class="bar">15</div><div class="bar">16</div><div class="bar">17</div><div class="bar">18</div><div class="bar">19</div><div class="bar">20</div><div class="bar">21</div><div class="bar">22</div><div class="bar">23</div><div class="bar">24</div><div class="bar">25</div><div class="bar">26</div><div class="bar">27</div><div class="bar">28</div><div class="bar">29</div><div class="bar">30</div><div class="bar">31</div><div class="bar">32</div></div>
 <div id="audioList" class="audio-list" style="margin-top:12px"><p class="status">No imported tracks yet.</p></div>
 </div></section>
 
@@ -509,7 +510,20 @@ q('#timelineBpm').onchange=()=>{
  if(timelineClock&&metronomeEnabled&&nativeAudioAvailable()&&window.royceNativeAudio.metronomeStart)window.royceNativeAudio.metronomeStart(bpm);
  scheduleRecovery();
 };
+q('#snapGrid').onchange=()=>{updateSnapGridUI();scheduleRecovery()};
 
+function snapGridSteps(){
+ const el=q('#snapGrid');
+ return Math.min(16,Math.max(1,+el?.value||1));
+}
+function snapGridLabel(){
+ const steps=snapGridSteps();
+ return steps===16?'1 bar':steps===4?'1 beat':steps===2?'1/8 note':'1/16 note';
+}
+function updateSnapGridUI(){
+ const s=q('#snapStatus');
+ if(s)s.textContent='Nudge moves clips by '+snapGridLabel()+'.';
+}
 function syncLiveNativeClipMix(){
  if(!(timelineClock&&nativeAudioAvailable()&&window.royceNativeAudio.transportClipVolume))return;
  const anySolo=audioTracks.some(t=>!!t.solo);
@@ -536,7 +550,7 @@ function renderAudioTracks(){
   '<div class="row"><label>Pan <span data-pan-val>'+(Math.round((+t.pan||0)*100))+'</span></label><input data-act="pan" type="range" min="-1" max="1" step="0.01" value="'+(+t.pan||0)+'"></div></div>'+
   '<div class="grid2"><div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="32" step="1" value="'+t.bar+'"></div>'+
   '<div class="row"><label>Start Beat <span data-beat-val>'+(Math.min(4,Math.max(1,+t.beat||1)))+'</span></label><input data-act="beat" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.beat||1))+'"></div></div>'+
-  '<div class="row"><label>16th Step <span data-sixteenth-val>'+(Math.min(4,Math.max(1,+t.sixteenth||1)))+'</span></label><input data-act="sixteenth" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.sixteenth||1))+'"></div>'+  '<div class="grid2"><button data-act="nudgeLeft">← Nudge 1/16</button><button data-act="nudgeRight">Nudge 1/16 →</button></div>'+
+  '<div class="row"><label>16th Step <span data-sixteenth-val>'+(Math.min(4,Math.max(1,+t.sixteenth||1)))+'</span></label><input data-act="sixteenth" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.sixteenth||1))+'"></div>'+  '<div class="grid2"><button data-act="nudgeLeft">← Nudge</button><button data-act="nudgeRight">Nudge →</button></div>'+
   '<div class="grid2"><div class="row"><label>Trim Start (sec)</label><input data-act="trimStart" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimStart||0).toFixed(1)+'"></div>'+
   '<div class="row"><label>Trim End (sec) · 0 = full</label><input data-act="trimEnd" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimEnd||0).toFixed(1)+'"></div></div>'+
   '<div class="row"><label>Split At Source Time (sec)</label><input data-act="splitAt" type="number" inputmode="decimal" min="0.1" step="0.1" value="'+Math.max(0.1,(+t.trimStart||0)+1).toFixed(1)+'"></div>';
@@ -677,8 +691,8 @@ function renderAudioTracks(){
     t.sixteenth=(within%4)+1;
     renderAudioTracks();paintBars();scheduleRecovery();
   };
-  row.querySelector('[data-act="nudgeLeft"]').onclick=()=>nudgeClip(-1);
-  row.querySelector('[data-act="nudgeRight"]').onclick=()=>nudgeClip(1);
+  row.querySelector('[data-act="nudgeLeft"]').onclick=()=>nudgeClip(-snapGridSteps());
+  row.querySelector('[data-act="nudgeRight"]').onclick=()=>nudgeClip(snapGridSteps());
   row.querySelector('[data-act="bar"]').oninput=e=>{t.bar=+e.target.value;paintBars();scheduleRecovery()};
   row.querySelector('[data-act="beat"]').oninput=e=>{
     t.beat=Math.min(4,Math.max(1,+e.target.value||1));
@@ -730,10 +744,11 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.33-ios',
+   version:'1.34-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
+   snapGrid:snapGridSteps(),
    metronome:{
      enabled:metronomeEnabled,
      countIn:countInEnabled,
@@ -845,6 +860,7 @@ function applyValue(id,value){
 window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');applyValue('timelineBpm',p.bpm||120);
+ applyValue('snapGrid',p.snapGrid||1);updateSnapGridUI();
  const metro=p.metronome||{},punch=p.punch||{};
  metronomeEnabled=!!metro.enabled;countInEnabled=!!metro.countIn;
  punchInEnabled=!!punch.enabled;
