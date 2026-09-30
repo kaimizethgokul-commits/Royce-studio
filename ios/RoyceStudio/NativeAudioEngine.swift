@@ -523,6 +523,7 @@ final class NativeAudioEngine {
             let sixteenth = min(max(item["sixteenth"] as? Int ?? 1, 1), 4)
             let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
             let pan = min(max(item["pan"] as? Float ?? 0, -1), 1)
+            let shouldLoop = item["loop"] as? Bool ?? false
             let beatSeconds = 60.0 / safeBPM
             let sixteenthSeconds = beatSeconds / 4.0
             let offsetSeconds =
@@ -573,12 +574,58 @@ final class NativeAudioEngine {
             let frameCount = AVAudioFrameCount(
                 min(frameCount64, AVAudioFramePosition(UInt32.max))
             )
-            player.scheduleSegment(
-                file,
-                startingFrame: startFrame,
-                frameCount: frameCount,
-                at: when
-            )
+
+            if shouldLoop {
+                let clipDurationSeconds = Double(frameCount) / fileRate
+                let arrangementDurationSeconds = barSeconds * 32.0
+
+                if clipDurationSeconds > 0 {
+                    var loopStartSeconds = offsetSeconds
+                    var scheduledLoops = 0
+
+                    while
+                        loopStartSeconds < arrangementDurationSeconds,
+                        scheduledLoops < 1_024
+                    {
+                        let remainingSeconds =
+                            arrangementDurationSeconds - loopStartSeconds
+                        let remainingFrames = AVAudioFramePosition(
+                            remainingSeconds * fileRate
+                        )
+                        let loopFrameCount = AVAudioFrameCount(
+                            min(
+                                AVAudioFramePosition(frameCount),
+                                max(0, remainingFrames)
+                            )
+                        )
+                        guard loopFrameCount > 0 else { break }
+
+                        let loopWhen = AVAudioTime(
+                            sampleTime: baseSampleTime + AVAudioFramePosition(
+                                loopStartSeconds * sampleRate
+                            ),
+                            atRate: sampleRate
+                        )
+                        player.scheduleSegment(
+                            file,
+                            startingFrame: startFrame,
+                            frameCount: loopFrameCount,
+                            at: loopWhen
+                        )
+
+                        loopStartSeconds += clipDurationSeconds
+                        scheduledLoops += 1
+                    }
+                }
+            } else {
+                player.scheduleSegment(
+                    file,
+                    startingFrame: startFrame,
+                    frameCount: frameCount,
+                    at: when
+                )
+            }
+
             player.play(at: when)
             transportPlayers[clipID] = player
             scheduledAnything = true
