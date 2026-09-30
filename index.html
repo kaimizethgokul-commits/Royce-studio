@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.23 iOS</title>
+<title>Royce Studio v1.24 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.23 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.24 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -325,7 +325,7 @@ function stopTimeline(stopMaster=false){
    else if(t.audio){t.audio.pause();t.audio.currentTime=0}
  });
  qa('#timelineRuler .bar').forEach(b=>b.classList.remove('playhead'));
- q('#timelineStatus').textContent='Stopped · Bar 1';
+ q('#timelineStatus').textContent='Stopped · Native synchronized transport ready';
  if(stopMaster&&timelineRecording&&nativeAudioAvailable()&&window.royceNativeAudio.masterStop){
    window.royceNativeAudio.masterStop();timelineRecording=false;
    q('#masterRecord').textContent='Start Master';q('#masterRecord').classList.remove('on');masterCapturing=false;
@@ -344,7 +344,8 @@ function startTimeline(record=false){
  }
  const useNativeTransport=nativeAudioAvailable()&&window.royceNativeAudio.transportStart;
  if(useNativeTransport){
-   const nativeTracks=audioTracks.filter(t=>t.native).map(t=>({
+   const anySolo=audioTracks.some(t=>!!t.solo);
+   const nativeTracks=audioTracks.filter(t=>t.native&&!t.muted&&(!anySolo||t.solo)).map(t=>({
      id:t.id,
      bar:Math.max(1,+t.bar||1),
      volume:t.audio?.volume??t.volume??1
@@ -359,6 +360,8 @@ function startTimeline(record=false){
    timelineTimers.push(setTimeout(()=>window.royceNativeAudio.compPlay(),vocalDelay));
  }
  audioTracks.forEach(t=>{
+   const anySolo=audioTracks.some(x=>!!x.solo);
+   if(t.muted||(anySolo&&!t.solo))return;
    if(t.native&&useNativeTransport)return;
    const delay=Math.max(0,(Math.max(1,+t.bar||1)-1)*barMs);
    timelineTimers.push(setTimeout(()=>{
@@ -502,7 +505,7 @@ function renderAudioTracks(){
   const row=document.createElement('div');row.className='audio-row';
   row.innerHTML='<div class="audio-top"><b></b><span class="badge">Track '+(i+1)+'</span></div>'+
   '<audio controls preload="metadata" style="width:100%"></audio>'+
-  '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="loop">Loop Off</button><button data-act="remove">Remove</button></div>'+
+  '<div class="audio-actions"><button data-act="play">Play/Pause</button><button data-act="mute">Mute</button><button data-act="solo">Solo</button><button data-act="loop">Loop Off</button><button data-act="remove">Remove</button></div>'+
   '<div class="grid2"><div class="row"><label>Volume</label><input data-act="vol" type="range" min="0" max="1" step="0.01" value="'+(t.audio?.volume??t.volume??1)+'"></div>'+
   '<div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div></div>';
   row.querySelector('b').textContent=t.name;
@@ -514,6 +517,21 @@ function renderAudioTracks(){
     if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaToggle){
       window.royceNativeAudio.mediaToggle(t.id,a.volume,t.loop);
     }else a.paused?a.play():a.pause();
+  };
+  const muteBtn=row.querySelector('[data-act="mute"]'),soloBtn=row.querySelector('[data-act="solo"]');
+  muteBtn.textContent=t.muted?'Muted':'Mute';muteBtn.classList.toggle('on',!!t.muted);
+  soloBtn.textContent=t.solo?'Solo On':'Solo';soloBtn.classList.toggle('on',!!t.solo);
+  muteBtn.onclick=()=>{
+    t.muted=!t.muted;
+    muteBtn.textContent=t.muted?'Muted':'Mute';muteBtn.classList.toggle('on',!!t.muted);
+    if(t.muted&&t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaStop)window.royceNativeAudio.mediaStop(t.id);
+    if(t.muted&&!t.native&&t.audio)t.audio.pause();
+    scheduleRecovery();
+  };
+  soloBtn.onclick=()=>{
+    t.solo=!t.solo;
+    soloBtn.textContent=t.solo?'Solo On':'Solo';soloBtn.classList.toggle('on',!!t.solo);
+    scheduleRecovery();
   };
   row.querySelector('[data-act="loop"]').onclick=e=>{
     t.loop=!t.loop;a.loop=t.loop;
@@ -539,7 +557,7 @@ function paintBars(){
 window.royceNativeMediaImported=function(items){
  for(const item of (items||[])){
    const a=new Audio();a.volume=1;
-   audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1});
+   audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1,muted:false,solo:false});
  }
  renderAudioTracks();paintBars();scheduleRecovery();
 };
@@ -554,7 +572,7 @@ q('#importTracks').onchange=async e=>{
    const id=rsMediaId();
    try{await rsStoreAudio(id,f)}catch(err){console.error('Royce media store failed',err)}
    const a=new Audio();a.volume=1;
-   audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1});
+   audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1,muted:false,solo:false});
  }
  renderAudioTracks();paintBars();scheduleRecovery();e.target.value='';
 };
@@ -562,7 +580,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.23-ios',
+   version:'1.24-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -622,6 +640,8 @@ function collectRoyceProject(){
      name:t.name,
      native:!!t.native,
      loop:!!t.loop,
+     muted:!!t.muted,
+     solo:!!t.solo,
      bar:+t.bar,
      volume:t.audio?.volume??t.volume??1
    }))
@@ -635,7 +655,7 @@ async function restoreTimelineFromProject(items){
    if(!meta?.id){missing++;continue}
    if(meta.native&&nativeAudioAvailable()){
      const a=new Audio();a.volume=meta.volume??1;
-     audioTracks.push({id:meta.id,name:meta.name||'Native Audio',native:true,url:'',audio:a,volume:meta.volume??1,loop:!!meta.loop,bar:+meta.bar||1});
+     audioTracks.push({id:meta.id,name:meta.name||'Native Audio',native:true,url:'',audio:a,volume:meta.volume??1,loop:!!meta.loop,bar:+meta.bar||1,muted:!!meta.muted,solo:!!meta.solo});
      continue;
    }
    try{
@@ -648,7 +668,9 @@ async function restoreTimelineFromProject(items){
        url:URL.createObjectURL(stored.blob),
        audio:a,
        loop:!!meta.loop,
-       bar:+meta.bar||1
+       bar:+meta.bar||1,
+       muted:!!meta.muted,
+       solo:!!meta.solo
      });
    }catch(e){missing++}
  }
