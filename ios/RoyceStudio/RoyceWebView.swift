@@ -110,6 +110,20 @@ struct RoyceWebView: UIViewRepresentable {
               transportStop: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'transportStop'});
               },
+              transportClipVolume: function(clipId, volume) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'transportClipVolume',
+                  clipId:clipId,
+                  volume:volume
+                });
+              },
+              transportClipPan: function(clipId, pan) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'transportClipPan',
+                  clipId:clipId,
+                  pan:pan
+                });
+              },
               autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'autoTune',
@@ -432,6 +446,7 @@ struct RoyceWebView: UIViewRepresentable {
                     else { continue }
 
                     nativeTracks.append([
+                        "clipId": item["clipId"] as? String ?? UUID().uuidString,
                         "url": media.url.absoluteString,
                         "bar": item["bar"] as? Int ?? 1,
                         "beat": item["beat"] as? Int ?? 1,
@@ -453,6 +468,22 @@ struct RoyceWebView: UIViewRepresentable {
                 )
             case "transportStop":
                 NativeAudioEngine.shared.stopNativeTransport()
+            case "transportClipVolume":
+                if let clipID = body["clipId"] as? String {
+                    let volume = body["volume"] as? Double ?? 1
+                    NativeAudioEngine.shared.setTransportClipVolume(
+                        id: clipID,
+                        volume: Float(volume)
+                    )
+                }
+            case "transportClipPan":
+                if let clipID = body["clipId"] as? String {
+                    let pan = body["pan"] as? Double ?? 0
+                    NativeAudioEngine.shared.setTransportClipPan(
+                        id: clipID,
+                        pan: Float(pan)
+                    )
+                }
             case "autoTune":
                 let enabled = body["enabled"] as? Bool ?? false
                 let key = body["key"] as? String ?? "C"
