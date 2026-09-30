@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.37 iOS</title>
+<title>Royce Studio v1.38 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.37 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.38 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -72,7 +72,8 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <p class="status">Import beats or loops. 8/16/24/32-bar arrangement · native synchronized looping, live mixing, snap grid, trim, mute, solo, split and duplicate.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
 <div class="grid2" style="margin-top:10px"><div class="row"><label>Nudge / Snap Grid</label><select id="snapGrid"><option value="1">1/16 Note</option><option value="2">1/8 Note</option><option value="4">1 Beat</option><option value="16">1 Bar</option></select></div><div class="row"><label>Song Length</label><select id="songLength"><option value="8">8 Bars</option><option value="16">16 Bars</option><option value="24">24 Bars</option><option value="32" selected>32 Bars</option></select></div></div>
-<div class="grid2"><div class="row"><label>Play From Bar <span id="playFromBarVal">1</span></label><input id="playFromBar" type="range" min="1" max="32" step="1" value="1"></div><button id="playFromStart">Reset Start · Bar 1</button></div>
+<div class="grid2"><div class="row"><label>Play From Bar <span id="playFromBarVal">1</span></label><input id="playFromBar" type="range" min="1" max="32" step="1" value="1"></div><div class="row"><label>Beat <span id="playFromBeatVal">1</span></label><input id="playFromBeat" type="range" min="1" max="4" step="1" value="1"></div></div>
+<div class="grid2"><div class="row"><label>16th Step <span id="playFromSixteenthVal">1</span></label><input id="playFromSixteenth" type="range" min="1" max="4" step="1" value="1"></div><button id="playFromStart">Reset Start · 1.1.1</button></div>
 <div class="grid2"><p class="status" id="snapStatus">Nudge moves clips by 1/16 note.</p><p class="status" id="songLengthStatus">32-bar song.</p></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
@@ -300,8 +301,7 @@ q('#crossfader').oninput=e=>{
 
 window.royceNativeTransportStarted=function(started){
  if(started&&timelineClock){
-   const from=playFromBar();
-   q('#timelineStatus').textContent='Playing · Native synchronized transport · From Bar '+from;
+   q('#timelineStatus').textContent='Playing · Native synchronized transport · From '+playFromBar()+'.'+playFromBeat()+'.'+playFromSixteenth();
  }
 };
 
@@ -337,10 +337,14 @@ function stopTimeline(stopMaster=false){
    q('#masterRecord').textContent='Start Master';q('#masterRecord').classList.remove('on');masterCapturing=false;
  }
 }
-function startTimeline(record=false,overrideStartBar=null){
+function startTimeline(record=false,overrideStartBar=null,overrideStartBeat=null,overrideStartSixteenth=null){
  stopTimeline(false);
- const bpm=timelineBpm(),barMs=(240000/bpm),lengthBars=arrangementBars(),
+ const bpm=timelineBpm(),barMs=(240000/bpm),beatMs=60000/bpm,sixteenthMs=beatMs/4,
+       lengthBars=arrangementBars(),
        startBar=overrideStartBar===null?playFromBar():Math.min(lengthBars,Math.max(1,+overrideStartBar||1)),
+       startBeat=overrideStartBeat===null?playFromBeat():Math.min(4,Math.max(1,+overrideStartBeat||1)),
+       startSixteenth=overrideStartSixteenth===null?playFromSixteenth():Math.min(4,Math.max(1,+overrideStartSixteenth||1)),
+       transportStartMs=(startBar-1)*barMs+(startBeat-1)*beatMs+(startSixteenth-1)*sixteenthMs,
        started=performance.now();
  if(metronomeEnabled&&nativeAudioAvailable()&&window.royceNativeAudio.metronomeStart){
    window.royceNativeAudio.metronomeVolume?.(+q('#metronomeVolume').value);
@@ -368,7 +372,7 @@ function startTimeline(record=false,overrideStartBar=null){
    const rawCompBar=Math.max(1,+q('#compStartBar').value||1);
    const compBar=(compLoadedTakeId&&rawCompBar<=lengthBars)?rawCompBar:null;
    if(nativeTracks.length||compBar!==null){
-     window.royceNativeAudio.transportStart(bpm,nativeTracks,compBar,lengthBars,startBar);
+     window.royceNativeAudio.transportStart(bpm,nativeTracks,compBar,lengthBars,startBar,startBeat,startSixteenth);
    }
  }
  if(compLoadedTakeId&&!useNativeTransport&&(+q('#compStartBar').value||1)<=lengthBars&&nativeAudioAvailable()&&window.royceNativeAudio.compPlay){
@@ -380,8 +384,6 @@ function startTimeline(record=false,overrideStartBar=null){
    const anySolo=audioTracks.some(x=>!!x.solo);
    if(t.muted||(anySolo&&!t.solo))return;
    if(t.native&&useNativeTransport)return;
-   const beatMs=60000/bpm,sixteenthMs=beatMs/4;
-   const transportStartMs=(startBar-1)*barMs;
    const clipStartMs=
      (Math.max(1,+t.bar||1)-1)*barMs+
      (Math.min(4,Math.max(1,+t.beat||1))-1)*beatMs+
@@ -409,10 +411,15 @@ function startTimeline(record=false,overrideStartBar=null){
  });
  const update=()=>{
    const elapsed=performance.now()-started;
-   const bar=Math.min(lengthBars,startBar+Math.floor(elapsed/barMs));
+   const absoluteMs=Math.min(lengthBars*barMs-1,transportStartMs+elapsed);
+   const bar=Math.min(lengthBars,Math.floor(absoluteMs/barMs)+1);
+   const withinBar=Math.max(0,absoluteMs-(bar-1)*barMs);
+   const beat=Math.min(4,Math.floor(withinBar/beatMs)+1);
+   const withinBeat=Math.max(0,withinBar-(beat-1)*beatMs);
+   const sixteenth=Math.min(4,Math.floor(withinBeat/sixteenthMs)+1);
    qa('#timelineRuler .bar').forEach((b,i)=>b.classList.toggle('playhead',i===bar-1&&i<lengthBars));
-   q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · Bar '+bar+'/'+lengthBars+' · From '+startBar+' · '+bpm+' BPM'+(useNativeTransport?' · Native Sync':'');
-   if(elapsed>=barMs*(lengthBars-startBar+1)){
+   q('#timelineStatus').textContent=(record?'Recording arrangement':'Playing')+' · '+bar+'.'+beat+'.'+sixteenth+' / '+lengthBars+' bars · '+bpm+' BPM'+(useNativeTransport?' · Native Sync':'');
+   if(elapsed>=Math.max(0,lengthBars*barMs-transportStartMs)){
      stopTimeline(record);
      return;
    }
@@ -471,7 +478,7 @@ function startPunchSession(){
  }
  const bars=normalizePunchBars();
  const bpm=timelineBpm(),barMs=240000/bpm;
- startTimeline(false,1);
+ startTimeline(false,1,1,1);
 
  const startDelay=Math.max(0,(bars.start-1)*barMs);
  const stopDelay=Math.max(startDelay+100,bars.end*barMs);
@@ -537,8 +544,12 @@ q('#timelineBpm').onchange=()=>{
 q('#snapGrid').onchange=()=>{updateSnapGridUI();scheduleRecovery()};
 q('#songLength').onchange=()=>{updateArrangementUI();scheduleRecovery()};
 q('#playFromBar').oninput=()=>{updatePlayFromUI();scheduleRecovery()};
+q('#playFromBeat').oninput=()=>{updatePlayFromUI();scheduleRecovery()};
+q('#playFromSixteenth').oninput=()=>{updatePlayFromUI();scheduleRecovery()};
 q('#playFromStart').onclick=()=>{
  q('#playFromBar').value=1;
+ q('#playFromBeat').value=1;
+ q('#playFromSixteenth').value=1;
  updatePlayFromUI();
  scheduleRecovery();
 };
@@ -551,13 +562,25 @@ function playFromBar(){
  const length=arrangementBars();
  return Math.min(length,Math.max(1,+q('#playFromBar')?.value||1));
 }
+function playFromBeat(){
+ return Math.min(4,Math.max(1,+q('#playFromBeat')?.value||1));
+}
+function playFromSixteenth(){
+ return Math.min(4,Math.max(1,+q('#playFromSixteenth')?.value||1));
+}
 function updatePlayFromUI(){
- const el=q('#playFromBar'),label=q('#playFromBarVal');
- if(!el)return;
- el.max=arrangementBars();
- if(+el.value>arrangementBars())el.value=arrangementBars();
- if(+el.value<1)el.value=1;
- if(label)label.textContent=playFromBar();
+ const barEl=q('#playFromBar'),barLabel=q('#playFromBarVal');
+ const beatEl=q('#playFromBeat'),beatLabel=q('#playFromBeatVal');
+ const sixEl=q('#playFromSixteenth'),sixLabel=q('#playFromSixteenthVal');
+ if(!barEl)return;
+ barEl.max=arrangementBars();
+ if(+barEl.value>arrangementBars())barEl.value=arrangementBars();
+ if(+barEl.value<1)barEl.value=1;
+ if(beatEl)beatEl.value=playFromBeat();
+ if(sixEl)sixEl.value=playFromSixteenth();
+ if(barLabel)barLabel.textContent=playFromBar();
+ if(beatLabel)beatLabel.textContent=playFromBeat();
+ if(sixLabel)sixLabel.textContent=playFromSixteenth();
 }
 function updateArrangementUI(){
  const length=arrangementBars();
@@ -801,12 +824,14 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.37-ios',
+   version:'1.38-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
    songLength:arrangementBars(),
    playFromBar:playFromBar(),
+   playFromBeat:playFromBeat(),
+   playFromSixteenth:playFromSixteenth(),
    snapGrid:snapGridSteps(),
    metronome:{
      enabled:metronomeEnabled,
@@ -920,7 +945,10 @@ window.royceApplyNativeProject=async function(p){
  if(!p||typeof p!=='object')return;
  applyValue('projectName',p.name||'Untitled Royce Session');applyValue('timelineBpm',p.bpm||120);
  applyValue('songLength',p.songLength||32);updateArrangementUI();
- applyValue('playFromBar',p.playFromBar||1);updatePlayFromUI();
+ applyValue('playFromBar',p.playFromBar||1);
+ applyValue('playFromBeat',p.playFromBeat||1);
+ applyValue('playFromSixteenth',p.playFromSixteenth||1);
+ updatePlayFromUI();
  applyValue('snapGrid',p.snapGrid||1);updateSnapGridUI();
  const metro=p.metronome||{},punch=p.punch||{};
  metronomeEnabled=!!metro.enabled;countInEnabled=!!metro.countIn;
