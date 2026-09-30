@@ -453,6 +453,7 @@ struct RoyceWebView: UIViewRepresentable {
                         "sixteenth": item["sixteenth"] as? Int ?? 1,
                         "volume": Float(item["volume"] as? Double ?? 1),
                         "pan": Float(item["pan"] as? Double ?? 0),
+                        "loop": item["loop"] as? Bool ?? false,
                         "trimStart": item["trimStart"] as? Double ?? 0,
                         "trimEnd": item["trimEnd"] as? Double ?? 0
                     ])
