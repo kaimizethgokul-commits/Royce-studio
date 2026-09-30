@@ -495,7 +495,9 @@ final class NativeAudioEngine {
         tracks: [[String: Any]],
         compStartBar: Int?,
         lengthBars: Int,
-        startBar: Int
+        startBar: Int,
+        startBeat: Int,
+        startSixteenth: Int
     ) -> Bool {
         startIfNeeded()
         stopNativeTransport()
@@ -503,15 +505,21 @@ final class NativeAudioEngine {
         let safeBPM = min(max(bpm, 40), 220)
         let safeLengthBars = min(max(lengthBars, 1), 32)
         let safeStartBar = min(max(startBar, 1), safeLengthBars)
+        let safeStartBeat = min(max(startBeat, 1), 4)
+        let safeStartSixteenth = min(max(startSixteenth, 1), 4)
         let barSeconds = 240.0 / safeBPM
+        let beatSeconds = 60.0 / safeBPM
+        let sixteenthSeconds = beatSeconds / 4.0
         let arrangementDurationSeconds =
             barSeconds * Double(safeLengthBars)
         let transportStartSeconds =
-            barSeconds * Double(safeStartBar - 1)
+            (barSeconds * Double(safeStartBar - 1)) +
+            (beatSeconds * Double(safeStartBeat - 1)) +
+            (sixteenthSeconds * Double(safeStartSixteenth - 1))
         let sampleRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
         guard sampleRate > 0 else { return false }
 
-        // The selected play-from bar becomes sample-time zero for this run.
+        // The selected bar/beat/16th position becomes sample-time zero for this run.
         let leadFrames = AVAudioFramePosition(sampleRate * 0.12)
         let baseSampleTime =
             (engine.outputNode.lastRenderTime?.sampleTime ?? 0) + leadFrames
@@ -532,8 +540,6 @@ final class NativeAudioEngine {
             let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
             let pan = min(max(item["pan"] as? Float ?? 0, -1), 1)
             let shouldLoop = item["loop"] as? Bool ?? false
-            let beatSeconds = 60.0 / safeBPM
-            let sixteenthSeconds = beatSeconds / 4.0
             let clipStartSeconds =
                 (Double(bar - 1) * barSeconds) +
                 (Double(beat - 1) * beatSeconds) +
