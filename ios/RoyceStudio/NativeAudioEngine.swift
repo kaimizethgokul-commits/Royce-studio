@@ -494,23 +494,27 @@ final class NativeAudioEngine {
         bpm: Double,
         tracks: [[String: Any]],
         compStartBar: Int?,
-        lengthBars: Int
+        lengthBars: Int,
+        startBar: Int
     ) -> Bool {
         startIfNeeded()
         stopNativeTransport()
 
         let safeBPM = min(max(bpm, 40), 220)
         let safeLengthBars = min(max(lengthBars, 1), 32)
+        let safeStartBar = min(max(startBar, 1), safeLengthBars)
         let barSeconds = 240.0 / safeBPM
         let arrangementDurationSeconds =
             barSeconds * Double(safeLengthBars)
+        let transportStartSeconds =
+            barSeconds * Double(safeStartBar - 1)
         let sampleRate = engine.outputNode.outputFormat(forBus: 0).sampleRate
         guard sampleRate > 0 else { return false }
 
-        // Give AVAudioEngine a short lead time so every player can be scheduled
-        // against exactly the same host/sample clock.
+        // The selected play-from bar becomes sample-time zero for this run.
         let leadFrames = AVAudioFramePosition(sampleRate * 0.12)
-        let baseSampleTime = (engine.outputNode.lastRenderTime?.sampleTime ?? 0) + leadFrames
+        let baseSampleTime =
+            (engine.outputNode.lastRenderTime?.sampleTime ?? 0) + leadFrames
 
         var scheduledAnything = false
 
@@ -530,20 +534,46 @@ final class NativeAudioEngine {
             let shouldLoop = item["loop"] as? Bool ?? false
             let beatSeconds = 60.0 / safeBPM
             let sixteenthSeconds = beatSeconds / 4.0
-            let offsetSeconds =
+            let clipStartSeconds =
                 (Double(bar - 1) * barSeconds) +
                 (Double(beat - 1) * beatSeconds) +
                 (Double(sixteenth - 1) * sixteenthSeconds)
-            guard offsetSeconds < arrangementDurationSeconds else {
+
+            guard clipStartSeconds < arrangementDurationSeconds else {
                 continue
             }
-            let offsetFrames = AVAudioFramePosition(
-                offsetSeconds * sampleRate
+
+            let fileRate = file.processingFormat.sampleRate
+            let totalFrames = file.length
+            guard fileRate > 0, totalFrames > 0 else { continue }
+
+            let trimStartSeconds =
+                max(item["trimStart"] as? Double ?? 0, 0)
+            let requestedEnd = item["trimEnd"] as? Double ?? 0
+            let trimEndSeconds = requestedEnd > 0
+                ? requestedEnd
+                : Double(totalFrames) / fileRate
+
+            let sourceStartFrame = min(
+                max(
+                    AVAudioFramePosition(trimStartSeconds * fileRate),
+                    0
+                ),
+                totalFrames
             )
-            let when = AVAudioTime(
-                sampleTime: baseSampleTime + offsetFrames,
-                atRate: sampleRate
+            let sourceEndFrame = min(
+                max(
+                    AVAudioFramePosition(trimEndSeconds * fileRate),
+                    sourceStartFrame
+                ),
+                totalFrames
             )
+            let sourceFrameCount = sourceEndFrame - sourceStartFrame
+            guard sourceFrameCount > 0 else { continue }
+
+            let clipDurationSeconds =
+                Double(sourceFrameCount) / fileRate
+            guard clipDurationSeconds > 0 else { continue }
 
             let player = AVAudioPlayerNode()
             player.volume = volume
@@ -554,137 +584,258 @@ final class NativeAudioEngine {
                 to: instrumentMixer,
                 format: file.processingFormat
             )
-            let fileRate = file.processingFormat.sampleRate
-            let totalFrames = file.length
-            let trimStartSeconds = max(item["trimStart"] as? Double ?? 0, 0)
-            let requestedEnd = item["trimEnd"] as? Double ?? 0
-            let trimEndSeconds = requestedEnd > 0
-                ? requestedEnd
-                : Double(totalFrames) / fileRate
 
-            let startFrame = min(
-                max(AVAudioFramePosition(trimStartSeconds * fileRate), 0),
-                totalFrames
-            )
-            let endFrame = min(
-                max(AVAudioFramePosition(trimEndSeconds * fileRate), startFrame),
-                totalFrames
-            )
-            let frameCount64 = endFrame - startFrame
-
-            guard frameCount64 > 0 else {
-                engine.disconnectNodeOutput(player)
-                engine.detach(player)
-                continue
-            }
-
-            let frameCount = AVAudioFrameCount(
-                min(frameCount64, AVAudioFramePosition(UInt32.max))
-            )
+            var firstPlayTime: AVAudioTime?
 
             if shouldLoop {
-                let clipDurationSeconds = Double(frameCount) / fileRate
-                if clipDurationSeconds > 0 {
-                    var loopStartSeconds = offsetSeconds
-                    var scheduledLoops = 0
-
-                    while
-                        loopStartSeconds < arrangementDurationSeconds,
-                        scheduledLoops < 1_024
-                    {
-                        let remainingSeconds =
-                            arrangementDurationSeconds - loopStartSeconds
-                        let remainingFrames = AVAudioFramePosition(
-                            remainingSeconds * fileRate
-                        )
-                        let loopFrameCount = AVAudioFrameCount(
-                            min(
-                                AVAudioFramePosition(frameCount),
-                                max(0, remainingFrames)
-                            )
-                        )
-                        guard loopFrameCount > 0 else { break }
-
-                        let loopWhen = AVAudioTime(
-                            sampleTime: baseSampleTime + AVAudioFramePosition(
-                                loopStartSeconds * sampleRate
-                            ),
-                            atRate: sampleRate
-                        )
-                        player.scheduleSegment(
-                            file,
-                            startingFrame: startFrame,
-                            frameCount: loopFrameCount,
-                            at: loopWhen
-                        )
-
-                        loopStartSeconds += clipDurationSeconds
-                        scheduledLoops += 1
-                    }
-                }
-            } else {
-                let remainingSeconds =
-                    arrangementDurationSeconds - offsetSeconds
-                let availableFrames = AVAudioFramePosition(
-                    remainingSeconds * fileRate
-                )
-                let finalFrameCount = AVAudioFrameCount(
-                    min(
-                        AVAudioFramePosition(frameCount),
-                        max(0, availableFrames)
-                    )
-                )
-                guard finalFrameCount > 0 else {
+                // A looping clip that started before the cursor resumes at the
+                // exact phase it would have reached at the selected bar.
+                let firstGlobalSeconds =
+                    max(clipStartSeconds, transportStartSeconds)
+                guard firstGlobalSeconds < arrangementDurationSeconds else {
                     engine.disconnectNodeOutput(player)
                     engine.detach(player)
                     continue
                 }
+
+                var firstSourceFrame = sourceStartFrame
+                if transportStartSeconds > clipStartSeconds {
+                    let elapsed =
+                        transportStartSeconds - clipStartSeconds
+                    let phase = elapsed.truncatingRemainder(
+                        dividingBy: clipDurationSeconds
+                    )
+                    firstSourceFrame = min(
+                        sourceStartFrame +
+                            AVAudioFramePosition(phase * fileRate),
+                        sourceEndFrame
+                    )
+                }
+
+                let firstAvailableFrames =
+                    max(0, sourceEndFrame - firstSourceFrame)
+                let firstRemainingSeconds =
+                    arrangementDurationSeconds - firstGlobalSeconds
+                let firstArrangementFrames =
+                    max(
+                        0,
+                        AVAudioFramePosition(
+                            firstRemainingSeconds * fileRate
+                        )
+                    )
+                let firstCount64 =
+                    min(firstAvailableFrames, firstArrangementFrames)
+
+                if firstCount64 > 0 {
+                    let firstCount = AVAudioFrameCount(
+                        min(
+                            firstCount64,
+                            AVAudioFramePosition(UInt32.max)
+                        )
+                    )
+                    let relativeSeconds =
+                        firstGlobalSeconds - transportStartSeconds
+                    let when = AVAudioTime(
+                        sampleTime:
+                            baseSampleTime +
+                            AVAudioFramePosition(
+                                relativeSeconds * sampleRate
+                            ),
+                        atRate: sampleRate
+                    )
+                    player.scheduleSegment(
+                        file,
+                        startingFrame: firstSourceFrame,
+                        frameCount: firstCount,
+                        at: when
+                    )
+                    firstPlayTime = when
+
+                    var nextGlobalSeconds =
+                        firstGlobalSeconds +
+                        (Double(firstCount) / fileRate)
+                    var scheduledLoops = 1
+
+                    while
+                        nextGlobalSeconds < arrangementDurationSeconds,
+                        scheduledLoops < 1_024
+                    {
+                        let remainingSeconds =
+                            arrangementDurationSeconds - nextGlobalSeconds
+                        let remainingFrames = max(
+                            0,
+                            AVAudioFramePosition(
+                                remainingSeconds * fileRate
+                            )
+                        )
+                        let loopCount64 = min(
+                            sourceFrameCount,
+                            remainingFrames
+                        )
+                        guard loopCount64 > 0 else { break }
+
+                        let loopCount = AVAudioFrameCount(
+                            min(
+                                loopCount64,
+                                AVAudioFramePosition(UInt32.max)
+                            )
+                        )
+                        let relativeSeconds =
+                            nextGlobalSeconds - transportStartSeconds
+                        let loopWhen = AVAudioTime(
+                            sampleTime:
+                                baseSampleTime +
+                                AVAudioFramePosition(
+                                    relativeSeconds * sampleRate
+                                ),
+                            atRate: sampleRate
+                        )
+                        player.scheduleSegment(
+                            file,
+                            startingFrame: sourceStartFrame,
+                            frameCount: loopCount,
+                            at: loopWhen
+                        )
+
+                        nextGlobalSeconds +=
+                            Double(loopCount) / fileRate
+                        scheduledLoops += 1
+                    }
+                }
+            } else {
+                let clipEndSeconds =
+                    clipStartSeconds + clipDurationSeconds
+
+                // Skip clips that finished before the selected start bar.
+                if
+                    clipEndSeconds <= transportStartSeconds ||
+                    clipStartSeconds >= arrangementDurationSeconds
+                {
+                    engine.disconnectNodeOutput(player)
+                    engine.detach(player)
+                    continue
+                }
+
+                let effectiveGlobalStart =
+                    max(clipStartSeconds, transportStartSeconds)
+                let elapsedIntoClip =
+                    max(0, transportStartSeconds - clipStartSeconds)
+                let playbackSourceStart = min(
+                    sourceStartFrame +
+                        AVAudioFramePosition(elapsedIntoClip * fileRate),
+                    sourceEndFrame
+                )
+                let availableSourceFrames =
+                    max(0, sourceEndFrame - playbackSourceStart)
+                let remainingArrangementSeconds =
+                    arrangementDurationSeconds - effectiveGlobalStart
+                let arrangementFrames = max(
+                    0,
+                    AVAudioFramePosition(
+                        remainingArrangementSeconds * fileRate
+                    )
+                )
+                let finalCount64 =
+                    min(availableSourceFrames, arrangementFrames)
+
+                guard finalCount64 > 0 else {
+                    engine.disconnectNodeOutput(player)
+                    engine.detach(player)
+                    continue
+                }
+
+                let finalCount = AVAudioFrameCount(
+                    min(
+                        finalCount64,
+                        AVAudioFramePosition(UInt32.max)
+                    )
+                )
+                let relativeSeconds =
+                    effectiveGlobalStart - transportStartSeconds
+                let when = AVAudioTime(
+                    sampleTime:
+                        baseSampleTime +
+                        AVAudioFramePosition(
+                            relativeSeconds * sampleRate
+                        ),
+                    atRate: sampleRate
+                )
                 player.scheduleSegment(
                     file,
-                    startingFrame: startFrame,
-                    frameCount: finalFrameCount,
+                    startingFrame: playbackSourceStart,
+                    frameCount: finalCount,
                     at: when
                 )
+                firstPlayTime = when
             }
 
-            player.play(at: when)
-            transportPlayers[clipID] = player
-            scheduledAnything = true
+            if let firstPlayTime {
+                player.play(at: firstPlayTime)
+                transportPlayers[clipID] = player
+                scheduledAnything = true
+            } else {
+                engine.disconnectNodeOutput(player)
+                engine.detach(player)
+            }
         }
 
         if let compStartBar, let file = compFile {
             let bar = max(1, compStartBar)
-            let compOffsetSeconds = Double(bar - 1) * barSeconds
+            let compStartSeconds = Double(bar - 1) * barSeconds
+            let compRate = file.processingFormat.sampleRate
+            guard compRate > 0 else { return scheduledAnything }
 
-            if compOffsetSeconds < arrangementDurationSeconds {
-                let offsetFrames = AVAudioFramePosition(
-                    compOffsetSeconds * sampleRate
+            let compDurationSeconds =
+                Double(file.length) / compRate
+            let compEndSeconds =
+                compStartSeconds + compDurationSeconds
+
+            if
+                compEndSeconds > transportStartSeconds &&
+                compStartSeconds < arrangementDurationSeconds
+            {
+                let effectiveGlobalStart =
+                    max(compStartSeconds, transportStartSeconds)
+                let elapsedIntoComp =
+                    max(0, transportStartSeconds - compStartSeconds)
+                let compSourceStart = min(
+                    AVAudioFramePosition(elapsedIntoComp * compRate),
+                    file.length
                 )
-                let when = AVAudioTime(
-                    sampleTime: baseSampleTime + offsetFrames,
-                    atRate: sampleRate
+                let availableCompFrames =
+                    max(0, file.length - compSourceStart)
+                let remainingArrangementSeconds =
+                    arrangementDurationSeconds - effectiveGlobalStart
+                let arrangementFrames = max(
+                    0,
+                    AVAudioFramePosition(
+                        remainingArrangementSeconds * compRate
+                    )
                 )
-                let remainingSeconds =
-                    arrangementDurationSeconds - compOffsetSeconds
-                let compRate = file.processingFormat.sampleRate
-                let availableFrames = AVAudioFramePosition(
-                    remainingSeconds * compRate
-                )
-                let compFrameCount = AVAudioFrameCount(
-                    min(
-                        file.length,
+                let compCount64 =
+                    min(availableCompFrames, arrangementFrames)
+
+                if compCount64 > 0 {
+                    let compFrameCount = AVAudioFrameCount(
                         min(
-                            availableFrames,
+                            compCount64,
                             AVAudioFramePosition(UInt32.max)
                         )
                     )
-                )
-
-                if compFrameCount > 0 {
+                    let relativeSeconds =
+                        effectiveGlobalStart - transportStartSeconds
+                    let when = AVAudioTime(
+                        sampleTime:
+                            baseSampleTime +
+                            AVAudioFramePosition(
+                                relativeSeconds * sampleRate
+                            ),
+                        atRate: sampleRate
+                    )
                     compPlayer.stop()
                     compPlayer.scheduleSegment(
                         file,
-                        startingFrame: 0,
+                        startingFrame: compSourceStart,
                         frameCount: compFrameCount,
                         at: when
                     )
