@@ -10,7 +10,7 @@ final class NativeAudioEngine {
     private var mediaPlayers: [String: AVAudioPlayerNode] = [:]
     private var mediaFiles: [String: AVAudioFile] = [:]
     private var mediaLoop: [String: Bool] = [:]
-    private var transportPlayers: [AVAudioPlayerNode] = []
+    private var transportPlayers: [String: AVAudioPlayerNode] = [:]
     private let instrumentMixer = AVAudioMixerNode()
     private let instrumentEQ = AVAudioUnitEQ(numberOfBands: 2)
     private var instrumentGraphConnected = false
@@ -473,12 +473,20 @@ final class NativeAudioEngine {
     }
 
     func stopNativeTransport() {
-        transportPlayers.forEach { player in
+        transportPlayers.values.forEach { player in
             player.stop()
             engine.detach(player)
         }
         transportPlayers.removeAll()
         compPlayer.stop()
+    }
+
+    func setTransportClipVolume(id: String, volume: Float) {
+        transportPlayers[id]?.volume = min(max(volume, 0), 1)
+    }
+
+    func setTransportClipPan(id: String, pan: Float) {
+        transportPlayers[id]?.pan = min(max(pan, -1), 1)
     }
 
     @discardableResult
@@ -509,6 +517,7 @@ final class NativeAudioEngine {
                 let file = try? AVAudioFile(forReading: url)
             else { continue }
 
+            let clipID = item["clipId"] as? String ?? UUID().uuidString
             let bar = max(1, item["bar"] as? Int ?? 1)
             let beat = min(max(item["beat"] as? Int ?? 1, 1), 4)
             let sixteenth = min(max(item["sixteenth"] as? Int ?? 1, 1), 4)
@@ -571,7 +580,7 @@ final class NativeAudioEngine {
                 at: when
             )
             player.play(at: when)
-            transportPlayers.append(player)
+            transportPlayers[clipID] = player
             scheduledAnything = true
         }
 
