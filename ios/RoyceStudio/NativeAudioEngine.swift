@@ -511,12 +511,15 @@ final class NativeAudioEngine {
 
             let bar = max(1, item["bar"] as? Int ?? 1)
             let beat = min(max(item["beat"] as? Int ?? 1, 1), 4)
+            let sixteenth = min(max(item["sixteenth"] as? Int ?? 1, 1), 4)
             let volume = min(max(item["volume"] as? Float ?? 1, 0), 1)
             let pan = min(max(item["pan"] as? Float ?? 0, -1), 1)
             let beatSeconds = 60.0 / safeBPM
+            let sixteenthSeconds = beatSeconds / 4.0
             let offsetSeconds =
                 (Double(bar - 1) * barSeconds) +
-                (Double(beat - 1) * beatSeconds)
+                (Double(beat - 1) * beatSeconds) +
+                (Double(sixteenth - 1) * sixteenthSeconds)
             let offsetFrames = AVAudioFramePosition(
                 offsetSeconds * sampleRate
             )
