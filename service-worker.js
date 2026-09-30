@@ -1,22 +1,49 @@
-const C='royce-live-v5';
-const SHELL=['./','./index.html','./styles.css?v=104fix2','./app.js?v=104safeboot1','./manifest.webmanifest'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(Promise.all([
-  caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))),
-  self.clients.claim()
-])));
-self.addEventListener('fetch',e=>{
-  const r=e.request;
-  if(r.method!=='GET') return;
-  const url=new URL(r.url);
-  if(r.mode==='navigate'||r.destination==='script'||r.destination==='style'){
-    e.respondWith(fetch(r).then(res=>{
-      const copy=res.clone();
-      caches.open(C).then(c=>c.put(r,copy));
-      return res;
-    }).catch(()=>caches.match(r).then(x=>x||caches.match('./index.html'))));
+const CACHE='royce-pwa-v139-1';
+const SHELL=['./','./index.html','./manifest.webmanifest'];
+
+self.addEventListener('install',event=>{
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache=>cache.addAll(SHELL))
+      .then(()=>self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(
+    caches.keys()
+      .then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+      .then(()=>self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  if(request.method!=='GET') return;
+
+  if(request.mode==='navigate'){
+    event.respondWith(
+      fetch(request)
+        .then(response=>{
+          const copy=response.clone();
+          caches.open(CACHE).then(cache=>cache.put('./index.html',copy));
+          return response;
+        })
+        .catch(()=>caches.match('./index.html'))
+    );
     return;
   }
-  e.respondWith(caches.match(r).then(x=>x||fetch(r)));
+
+  event.respondWith(
+    caches.match(request).then(cached=>{
+      const network=fetch(request).then(response=>{
+        if(response && response.ok){
+          const copy=response.clone();
+          caches.open(CACHE).then(cache=>cache.put(request,copy));
+        }
+        return response;
+      }).catch(()=>cached);
+      return cached || network;
+    })
+  );
 });
-self.addEventListener('message',e=>{if(e.data?.type==='SKIP_WAITING')self.skipWaiting()});
