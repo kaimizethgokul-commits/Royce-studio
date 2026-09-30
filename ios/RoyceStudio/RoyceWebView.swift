@@ -99,6 +99,17 @@ struct RoyceWebView: UIViewRepresentable {
               compStop: function() {
                 window.webkit.messageHandlers.royceAudio.postMessage({type:'compStop'});
               },
+              transportStart: function(bpm, tracks, compStartBar) {
+                window.webkit.messageHandlers.royceAudio.postMessage({
+                  type:'transportStart',
+                  bpm:bpm,
+                  tracks:tracks,
+                  compStartBar:compStartBar
+                });
+              },
+              transportStop: function() {
+                window.webkit.messageHandlers.royceAudio.postMessage({type:'transportStop'});
+              },
               autoTune: function(enabled, key, scale, strength, retuneMs, humanize) {
                 window.webkit.messageHandlers.royceAudio.postMessage({
                   type:'autoTune',
@@ -408,6 +419,35 @@ struct RoyceWebView: UIViewRepresentable {
                 NativeAudioEngine.shared.toggleCompTake()
             case "compStop":
                 NativeAudioEngine.shared.stopCompTake()
+            case "transportStart":
+                let bpm = body["bpm"] as? Double ?? 120
+                let requested = body["tracks"] as? [[String: Any]] ?? []
+                let compStartBar = body["compStartBar"] as? Int
+                var nativeTracks: [[String: Any]] = []
+
+                for item in requested {
+                    guard
+                        let id = item["id"] as? String,
+                        let media = NativeMediaStore.shared.item(id: id)
+                    else { continue }
+
+                    nativeTracks.append([
+                        "url": media.url.absoluteString,
+                        "bar": item["bar"] as? Int ?? 1,
+                        "volume": Float(item["volume"] as? Double ?? 1)
+                    ])
+                }
+
+                let started = NativeAudioEngine.shared.startNativeTransport(
+                    bpm: bpm,
+                    tracks: nativeTracks,
+                    compStartBar: compStartBar
+                )
+                message.webView?.evaluateJavaScript(
+                    "window.royceNativeTransportStarted && window.royceNativeTransportStarted(\(started ? "true" : "false"))"
+                )
+            case "transportStop":
+                NativeAudioEngine.shared.stopNativeTransport()
             case "autoTune":
                 let enabled = body["enabled"] as? Bool ?? false
                 let key = body["key"] as? String ?? "C"
