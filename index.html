@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#09090f">
-<title>Royce Studio v1.29 iOS</title>
+<title>Royce Studio v1.30 iOS</title>
 <style>
 :root{--bg:#09090f;--card:#15151e;--line:#2d2d3b;--text:#fff;--muted:#9d9dac;--accent:#8b5cf6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -39,7 +39,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 </head>
 <body>
 <div class="app">
-<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.29 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
+<header><div><p class="eyebrow">ROYCE</p><h1>Studio <span class="badge">v1.30 iOS</span></h1></div><button id="audioBtn" class="primary">Enable Audio</button></header>
 <div class="grid2" style="margin:0 0 10px"><button id="undoBtn" disabled>↶ Undo</button><button id="redoBtn" disabled>↷ Redo</button></div>
 <div class="tabs">
 <button class="tab active" data-tab="drums">Drums</button><button class="tab" data-tab="project">Project</button><button class="tab" data-tab="keys">Keys</button><button class="tab" data-tab="bass">Bass/808</button><button class="tab" data-tab="synth">Synth</button><button class="tab" data-tab="timeline">Timeline</button><button class="tab" data-tab="dj">DJ</button><button class="tab" data-tab="mixer">Mixer</button><button class="tab" data-tab="master">Master</button><button class="tab" data-tab="voice">Voice</button><button class="tab" data-tab="tune">Auto‑Tune</button>
@@ -69,7 +69,7 @@ select,input[type=range],input[type=text]{width:100%}select,input[type=text]{bac
 <section id="synth" class="panel"><div class="card"><h2>Synthesizer</h2><div class="grid2"><div class="row"><label>Oscillator</label><select id="oscType"><option>sawtooth</option><option>square</option><option>triangle</option><option>sine</option></select></div><div class="row"><label>Filter Cutoff <span id="cutoffVal">6000 Hz</span></label><input id="cutoff" type="range" min="200" max="12000" value="6000"></div><div class="row"><label>Attack <span id="attackVal">0.02s</span></label><input id="attack" type="range" min="0.01" max="1" step="0.01" value="0.02"></div><div class="row"><label>Release <span id="releaseVal">0.6s</span></label><input id="release" type="range" min="0.1" max="3" step="0.1" value="0.6"></div></div><div id="synthGrid" class="keygrid"></div></div></section>
 
 <section id="timeline" class="panel"><div class="card"><h2>Song Timeline</h2>
-<p class="status">Import beats or loops. Place clips by bar + beat, then trim, pan, mute, solo, split or duplicate them.</p>
+<p class="status">Import beats or loops. Place clips by bar + beat + 16th step, then trim, pan, mute, solo, split or duplicate them.</p>
 <div class="grid2"><div class="row"><label>BPM</label><input id="timelineBpm" type="text" inputmode="numeric" value="120"></div><div class="row"><label>Transport</label><div class="transport"><button id="timelinePlay">▶</button><button id="timelineStop">■</button><button id="timelineRecord">REC</button></div></div></div>
 <div class="grid2"><div class="row"><label>Metronome</label><button id="metronomeToggle">Click Off</button></div><div class="row"><label>Click Volume</label><input id="metronomeVolume" type="range" min="0" max="1" step="0.01" value="0.22"></div></div>
 <div class="grid2"><button id="countInToggle">1-Bar Count-In Off</button><span></span></div>
@@ -349,6 +349,7 @@ function startTimeline(record=false){
      id:t.id,
      bar:Math.max(1,+t.bar||1),
      beat:Math.min(4,Math.max(1,+t.beat||1)),
+     sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
      volume:t.audio?.volume??t.volume??1,
      pan:+t.pan||0,
      trimStart:Math.max(0,+t.trimStart||0),
@@ -367,10 +368,11 @@ function startTimeline(record=false){
    const anySolo=audioTracks.some(x=>!!x.solo);
    if(t.muted||(anySolo&&!t.solo))return;
    if(t.native&&useNativeTransport)return;
-   const beatMs=60000/bpm;
+   const beatMs=60000/bpm,sixteenthMs=beatMs/4;
    const delay=Math.max(0,
      (Math.max(1,+t.bar||1)-1)*barMs+
-     (Math.min(4,Math.max(1,+t.beat||1))-1)*beatMs
+     (Math.min(4,Math.max(1,+t.beat||1))-1)*beatMs+
+     (Math.min(4,Math.max(1,+t.sixteenth||1))-1)*sixteenthMs
    );
    timelineTimers.push(setTimeout(()=>{
      if(t.native&&nativeAudioAvailable()&&window.royceNativeAudio.mediaToggle){
@@ -518,6 +520,7 @@ function renderAudioTracks(){
   '<div class="row"><label>Pan <span data-pan-val>'+(Math.round((+t.pan||0)*100))+'</span></label><input data-act="pan" type="range" min="-1" max="1" step="0.01" value="'+(+t.pan||0)+'"></div></div>'+
   '<div class="grid2"><div class="row"><label>Start Bar</label><input data-act="bar" type="range" min="1" max="8" step="1" value="'+t.bar+'"></div>'+
   '<div class="row"><label>Start Beat <span data-beat-val>'+(Math.min(4,Math.max(1,+t.beat||1)))+'</span></label><input data-act="beat" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.beat||1))+'"></div></div>'+
+  '<div class="row"><label>16th Step <span data-sixteenth-val>'+(Math.min(4,Math.max(1,+t.sixteenth||1)))+'</span></label><input data-act="sixteenth" type="range" min="1" max="4" step="1" value="'+Math.min(4,Math.max(1,+t.sixteenth||1))+'"></div>'+
   '<div class="grid2"><div class="row"><label>Trim Start (sec)</label><input data-act="trimStart" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimStart||0).toFixed(1)+'"></div>'+
   '<div class="row"><label>Trim End (sec) · 0 = full</label><input data-act="trimEnd" type="number" inputmode="decimal" min="0" step="0.1" value="'+(+t.trimEnd||0).toFixed(1)+'"></div></div>'+
   '<div class="row"><label>Split At Source Time (sec)</label><input data-act="splitAt" type="number" inputmode="decimal" min="0.1" step="0.1" value="'+Math.max(0.1,(+t.trimStart||0)+1).toFixed(1)+'"></div>';
@@ -573,6 +576,7 @@ function renderAudioTracks(){
       loop:!!t.loop,
       bar:Math.min(8,Math.max(1,(+t.bar||1)+1)),
       beat:Math.min(4,Math.max(1,+t.beat||1)),
+      sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
       muted:!!t.muted,
       solo:false,
       pan:+t.pan||0,
@@ -600,6 +604,7 @@ function renderAudioTracks(){
       loop:!!t.loop,
       bar:Math.min(8,Math.max(1,(+t.bar||1)+1)),
       beat:Math.min(4,Math.max(1,+t.beat||1)),
+      sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
       muted:!!t.muted,
       solo:false,
       pan:+t.pan||0,
@@ -636,6 +641,11 @@ function renderAudioTracks(){
     row.querySelector('[data-beat-val]').textContent=t.beat;
     scheduleRecovery();
   };
+  row.querySelector('[data-act="sixteenth"]').oninput=e=>{
+    t.sixteenth=Math.min(4,Math.max(1,+e.target.value||1));
+    row.querySelector('[data-sixteenth-val]').textContent=t.sixteenth;
+    scheduleRecovery();
+  };
   row.querySelector('[data-act="trimStart"]').onchange=e=>{
     t.trimStart=Math.max(0,+e.target.value||0);e.target.value=t.trimStart.toFixed(1);scheduleRecovery();
   };
@@ -653,7 +663,7 @@ function paintBars(){
 window.royceNativeMediaImported=function(items){
  for(const item of (items||[])){
    const a=new Audio();a.volume=1;
-   audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1,beat:1,muted:false,solo:false,pan:0,trimStart:0,trimEnd:0});
+   audioTracks.push({id:item.id,name:item.name||'Imported Audio',native:true,url:'',audio:a,volume:1,loop:false,bar:1,beat:1,sixteenth:1,muted:false,solo:false,pan:0,trimStart:0,trimEnd:0});
  }
  renderAudioTracks();paintBars();scheduleRecovery();
 };
@@ -668,7 +678,7 @@ q('#importTracks').onchange=async e=>{
    const id=rsMediaId();
    try{await rsStoreAudio(id,f)}catch(err){console.error('Royce media store failed',err)}
    const a=new Audio();a.volume=1;
-   audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1,beat:1,muted:false,solo:false,pan:0,trimStart:0,trimEnd:0});
+   audioTracks.push({id,name:f.name,url:URL.createObjectURL(f),audio:a,loop:false,bar:1,beat:1,sixteenth:1,muted:false,solo:false,pan:0,trimStart:0,trimEnd:0});
  }
  renderAudioTracks();paintBars();scheduleRecovery();e.target.value='';
 };
@@ -676,7 +686,7 @@ q('#stopAllAudio').onclick=()=>{if(nativeAudioAvailable()&&window.royceNativeAud
 
 function collectRoyceProject(){
  return {
-   version:'1.29-ios',
+   version:'1.30-ios',
    name:(q('#projectName').value||'Untitled Royce Session').trim()||'Untitled Royce Session',
    savedAt:new Date().toISOString(),
    bpm:timelineBpm(),
@@ -743,6 +753,7 @@ function collectRoyceProject(){
      trimEnd:Math.max(0,+t.trimEnd||0),
      bar:+t.bar,
      beat:Math.min(4,Math.max(1,+t.beat||1)),
+     sixteenth:Math.min(4,Math.max(1,+t.sixteenth||1)),
      volume:t.audio?.volume??t.volume??1
    }))
  };
@@ -755,7 +766,7 @@ async function restoreTimelineFromProject(items){
    if(!meta?.id){missing++;continue}
    if(meta.native&&nativeAudioAvailable()){
      const a=new Audio();a.volume=meta.volume??1;
-     audioTracks.push({id:meta.id,name:meta.name||'Native Audio',native:true,url:'',audio:a,volume:meta.volume??1,loop:!!meta.loop,bar:+meta.bar||1,beat:Math.min(4,Math.max(1,+meta.beat||1)),muted:!!meta.muted,solo:!!meta.solo,pan:+meta.pan||0,trimStart:Math.max(0,+meta.trimStart||0),trimEnd:Math.max(0,+meta.trimEnd||0)});
+     audioTracks.push({id:meta.id,name:meta.name||'Native Audio',native:true,url:'',audio:a,volume:meta.volume??1,loop:!!meta.loop,bar:+meta.bar||1,beat:Math.min(4,Math.max(1,+meta.beat||1)),sixteenth:Math.min(4,Math.max(1,+meta.sixteenth||1)),muted:!!meta.muted,solo:!!meta.solo,pan:+meta.pan||0,trimStart:Math.max(0,+meta.trimStart||0),trimEnd:Math.max(0,+meta.trimEnd||0)});
      continue;
    }
    try{
@@ -770,6 +781,7 @@ async function restoreTimelineFromProject(items){
        loop:!!meta.loop,
        bar:+meta.bar||1,
        beat:Math.min(4,Math.max(1,+meta.beat||1)),
+       sixteenth:Math.min(4,Math.max(1,+meta.sixteenth||1)),
        muted:!!meta.muted,
        solo:!!meta.solo,
        pan:+meta.pan||0,
